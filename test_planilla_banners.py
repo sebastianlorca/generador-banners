@@ -19,6 +19,23 @@ def workbook(shared_ids='123 / 456 / 789'):
 
 
 class SheetsTests(TestCase):
+    def test_names_match_column_and_cycle(self):
+        data = BytesIO()
+        with ZipFile(BytesIO(workbook())) as old, ZipFile(data, 'w') as new:
+            for name in old.namelist():
+                content = old.read(name)
+                if name.endswith('sheet1.xml'):
+                    extra = '<row r="29"><c r="E29" t="inlineStr"><is><t>Principal-IMB2-Notebooks-SKU:56691-56693</t></is></c><c r="AA29" t="inlineStr"><is><t>Otro banner</t></is></c></row><row r="63"><c r="E63" t="inlineStr"><is><t>Fin de semana</t></is></c></row>'
+                    content = content.replace(b'</sheetData>', (extra + '</sheetData>').encode())
+                new.writestr(name, content)
+        cycles = parse_workbook(data.getvalue())[0]['cycles']
+        self.assertEqual(cycles['9'][0]['name'], 'Principal-IMB2-Notebooks-SKU:56691-56693')
+        self.assertEqual(cycles['9'][0]['nameCell'], 'E29')
+        self.assertEqual(cycles['9'][1]['name'], '')
+        self.assertEqual(cycles['9'][2]['name'], 'Otro banner')
+        self.assertEqual(cycles['43'][0]['name'], 'Fin de semana')
+        self.assertEqual(cycles['43'][0]['nameCell'], 'E63')
+
     def test_commas_and_mixed_separators(self):
         for value, expected in [('123,456', ['123']), ('123, 456,789', ['123']), ('123 / 456,789', ['123', '456']), ('12345 - 23456, 23457', ['12345', '23456']), ('123,,456', ['123']), ('1/2/3/4', [])]:
             with self.subTest(value=value):

@@ -40,7 +40,7 @@ def parse_workbook(content):
             rows = {'9': [], '43': []}
             prices = {}
             for row in ET.fromstring(archive.read(path)).findall('s:sheetData/s:row', NS):
-                if row.attrib.get('r') not in ('9', '17', '18', '43', '51', '52'):
+                if row.attrib.get('r') not in ('9', '17', '18', '29', '43', '51', '52', '63'):
                     continue
                 for cell in row.findall('s:c', NS):
                     ref = cell.attrib.get('r', '')
@@ -79,6 +79,8 @@ def parse_workbook(content):
                 for group in groups:
                     del group['_column']
                     column_name = re.match(r'[A-Z]+', group['cell'])[0]
+                    group['nameCell'] = column_name + ('29' if cycle == '9' else '63')
+                    group['name'] = prices.get(group['nameCell'], '')
                     reference_row, offer_row = ('17', '18') if cycle == '9' else ('51', '52')
                     group['priceCells'] = {'reference': column_name + reference_row, 'offer': column_name + offer_row}
                     group['sheetPrices'] = None

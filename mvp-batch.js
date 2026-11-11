@@ -26,13 +26,15 @@ const groupFormats=new WeakMap();
 const formatHelp=$('formats-heading').nextElementSibling;
 const individualFormatHelp=formatHelp.textContent;
 const groups=()=>sheets.find(sheet=>sheet.name===$('sheetWeek').value)?.cycles[$('sheetCycle').value]||[];
+const groupLabel=group=>group.cell+': '+(group.name||group.ids.join(' - ')||group.value);
+const shortGroupLabel=group=>{const characters=Array.from(groupLabel(group));return characters.length>45?characters.slice(0,44).join('')+'…':characters.join('')};
 function clearBatch(){tabs.replaceChildren();panels.replaceChildren();progress.textContent=''}
 function summarize(){
 clearBatch();const rows=groups(),summary=$('sheetSummary');summary.replaceChildren();summary.hidden=!rows.length;
 for(const group of rows){
 const row=document.createElement('div'),heading=document.createElement('p');
 row.className='batch-group';heading.id='sheet-group-'+group.cell;
-heading.textContent=group.cell+': '+(group.error?group.value+' — '+group.error:group.ids.join(' - '));
+heading.textContent=shortGroupLabel(group)+(group.error?' — '+group.error:'');heading.title=groupLabel(group);
 heading.classList.toggle('batch-error',!!group.error);row.append(heading);summary.append(row);
 if(group.error)continue;
 const controls=document.createElement('div');
@@ -101,7 +103,7 @@ clearBatch();running=true;lock(true);batch.hidden=false;let failures=0;
 try{
 for(let i=0;i<rows.length;i++){
 const group=rows[i],tab=document.createElement('button'),panel=document.createElement('div');
-tab.type='button';tab.id='batchTab'+i;tab.setAttribute('role','tab');tab.setAttribute('aria-controls','batchPanel'+i);tab.textContent=group.ids.join(' - ');tab.title=group.cell;
+tab.type='button';tab.id='batchTab'+i;tab.setAttribute('role','tab');tab.setAttribute('aria-controls','batchPanel'+i);tab.textContent=shortGroupLabel(group);tab.title=groupLabel(group);
 panel.id='batchPanel'+i;panel.className='batch-panel';panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',tab.id);panel.tabIndex=0;
 tab.addEventListener('click',()=>activate(i));tabs.append(tab);panels.append(panel);activate(i);
 progress.textContent='Generando '+(i+1)+' de '+rows.length+' · '+group.cell+'…';
