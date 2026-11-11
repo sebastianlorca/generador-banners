@@ -1,0 +1,48 @@
+{% assign campana = spaces['banners-principales'].types['campana'].entries | sort_by: 'published_at', 'asc' | limit: 20 %}
+
+<div class="container">
+
+	<main id="pcf-banner-mvp" data-api-base="{{ vars.api-url-new | escape }}">
+
+		<header class="generator-header"><h1>Generador de banners</h1></header>
+		<form id="form" class="generator-config">
+            <div class="config-intro"><h2>Prepara tu campa&ntilde;a</h2><p>Elige el dise&ntilde;o, agrega tus productos y genera las piezas.</p></div>
+            <section class="config-section campaign-section" aria-labelledby="campaign-heading">
+            <h3 id="campaign-heading"><span class="step-number">01</span> Dise&ntilde;o de campa&ntilde;a</h3>
+		<label for="selector-campana">Selecciona una campa&ntilde;a</label>
+		<select id="selector-campana" name="campana" aria-describedby="campaign-help" required>
+			<option value="" disabled selected>Selecciona una opci&oacute;n</option>
+			{% for entrada in campana %}
+			<option value="{{ entrada.meta.uuid | escape }}"
+                data-content-url="{{ entrada.meta.account_url | escape }}/api/content/spaces/banners-principales/types/campana/entries/{{ entrada.meta.uuid | escape }}"
+                data-locale="{{ entrada.meta.locale | escape }}"
+			>{{ entrada.meta.name | escape }}</option>
+			{% endfor %}
+		</select>
+            <p id="campaign-help" class="field-hint">Los fondos y colores se cargan autom&aacute;ticamente desde la campa&ntilde;a seleccionada.</p>
+            </section>
+            <section class="config-section" aria-labelledby="products-heading"><h3 id="products-heading"><span class="step-number">02</span> Productos</h3><p class="section-help">Agrega de uno a tres IDs del cat&aacute;logo, en el orden en que quieres mostrarlos.</p>
+			<div class="fields product-fields">
+				<label>Producto 1 &middot; ID<input id="left" type="text" inputmode="numeric" pattern="[0-9]+" value="57024" placeholder="Ej. 57024"></label>
+				<label>Producto 2 &middot; ID<input id="right" type="text" inputmode="numeric" pattern="[0-9]+" value="49917" placeholder="Opcional"></label>
+				<label>Producto 3 &middot; ID<input id="third" type="text" inputmode="numeric" pattern="[0-9]+" placeholder="Opcional"></label>
+			</div>
+			<p id="version" role="status"></p></section>
+			<div id="controlParking" hidden></div>
+			
+			<section class="config-section" aria-labelledby="formats-heading"><h3 id="formats-heading"><span class="step-number">03</span> Formatos de salida</h3><p class="section-help">Selecciona las piezas que necesitas para esta campa&ntilde;a.</p><fieldset class="format-options"><legend class="visually-hidden">Formatos a generar</legend><label class="toggle"><input id="formatDesk" type="checkbox" checked><span>Desk<small>1920 &times; 525 px</small></span></label><label class="toggle"><input id="formatMobile" type="checkbox" checked><span>Mobile<small>556 &times; 416 px</small></span></label><label class="toggle"><input id="formatStory" type="checkbox" checked><span>Storie<small>1080 &times; 1920 px</small></span></label><label class="toggle"><input id="formatFhd" type="checkbox" checked><span>FHD<small>1920 &times; 1080 px</small></span></label><label class="toggle"><input id="formatMini" type="checkbox" checked><span>Mini Totem<small>800 &times; 1280 px</small></span></label><label class="toggle"><input id="formatHorizontal" type="checkbox" checked><span>Horizontal 5760<small>5760 &times; 1080 px</small></span></label><label class="toggle"><input id="formatHorizontal3840" type="checkbox" checked><span>Horizontal 3840<small>3840 &times; 1080 px</small></span></label></fieldset></section>
+			<div class="generate-footer"><label class="export-choice">Formato de descarga<select id="exportFormat"><option value="png">PNG (sin p&eacute;rdida)</option><option value="webp">WebP (calidad 90%)</option></select></label><div class="actions"><button id="generate" type="submit">Generar banners <span aria-hidden="true">&rarr;</span></button></div></div>
+			<p id="status" role="status" aria-live="polite">Completa de uno a tres IDs. Los campos vacíos no se consultan. Los precios iniciales vienen del catálogo; el descuento se calcula con los precios editados.</p>
+		</form>
+		<div class="results-heading"><h2>Vista previa y descarga</h2><p>Revisa cada formato y ajusta tus productos antes de descargar.</p></div>
+		<details id="sharedEditors" class="preview" open hidden><summary class="preview-heading"><strong>Datos de productos</strong><span>Textos, precios e imagen compartidos</span></summary><div id="sharedControlsHost"></div></details>
+		<details class="preview" open><summary class="preview-heading"><strong>Banner Principal Web Desk</strong><span>Escritorio · 1920 × 525 · PNG</span></summary><div id="desktopPreviewContent" hidden><canvas id="canvas" width="1920" height="525" aria-label="Vista previa del banner"></canvas><div id="products"></div><div id="deskControlsHost"><div id="imageControls" class="product-controls" hidden></div></div><div class="actions"><button type="button" id="download" class="secondary" disabled>Descargar escritorio PNG</button></div></div></details>
+		<details class="preview" open><summary class="preview-heading"><strong>Banner Principal Web Mobile</strong><span>Un banner por producto &middot; 556 &times; 416 &middot; PNG / WebP</span></summary><p id="mobileHint" hidden>Genera la campa&ntilde;a para ver sus banners mobile.</p><div id="mobilePreviews" class="mobile-grid"></div></details>
+		<details class="preview" open><summary class="preview-heading"><strong>Banner Stories</strong><span>Una por producto &middot; 1080 &times; 1920 &middot; PNG / WebP</span></summary><p id="storyHint" hidden>Genera la campa&ntilde;a para ver sus stories.</p><div id="storyPreviews" class="mobile-grid"></div></details>
+		<details class="preview" open><summary class="preview-heading"><strong>Pantalla FHD</strong><span>Una por producto &middot; 1920 &times; 1080 &middot; PNG / WebP</span></summary><div id="fhdPreviews" class="fhd-grid"></div></details>
+		<details class="preview" open><summary class="preview-heading"><strong>Banner Mini Totem</strong><span>Uno por producto &middot; 800 &times; 1280 &middot; PNG / WebP</span></summary><div id="miniPreviews" class="mobile-grid"></div></details>
+		<details class="preview" open><summary class="preview-heading"><strong>Horizontal 5760</strong><span>Una por producto &middot; 5760 &times; 1080 &middot; PNG / WebP</span></summary><div id="horizontalPreviews" class="fhd-grid"></div></details>
+		<details class="preview" open><summary class="preview-heading"><strong>Horizontal 3840</strong><span>Una por producto &middot; 3840 &times; 1080 &middot; PNG / WebP</span></summary><div id="horizontal3840Previews" class="fhd-grid"></div></details>
+		<details><summary>Uso en Modyo</summary><p>Selecciona una campa&ntilde;a para cargar sus fondos y colores desde Modyo. Luego completa los IDs y selecciona los formatos. El servicio de cat&aacute;logo utiliza la variable de sitio api-url-new. Las fotos y fondos remotos deben permitir CORS para procesar y descargar las im&aacute;genes.</p></details>
+	</main>
+</div>
