@@ -110,8 +110,8 @@ const query=new URLSearchParams();[...new Set(ids)].forEach(id=>query.append('pr
 const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
 try{
 let response;try{response=await fetch(endpoint+'?'+query,{method:'GET',headers:{Accept:'application/json'},signal:controller.signal})}
-catch(error){throw new Error(error.name==='AbortError'?'El cat?logo tard? demasiado en responder. Intenta nuevamente.':'No se pudo consultar el cat?logo. Revisa api-url-new, la conexi?n y los permisos CORS para este sitio Modyo.');}
-if(!response.ok)throw new Error('El cat?logo respondi? HTTP '+response.status+'. Revisa api-url-new y el endpoint /pcfactory-services-catalogo/v1/catalogo/productos/banners.');
+catch(error){throw new Error(error.name==='AbortError'?'El catálogo tardó demasiado en responder. Intenta nuevamente.':'No se pudo consultar el servidor local. Abre mvp.html desde iniciar-mvp.cmd y revisa la conexión.');}
+if(!response.ok){let detail='';try{detail=(await response.json()).error||''}catch{}throw new Error('La consulta al catálogo respondió HTTP '+response.status+'. '+(detail||'Revisa la consola del servidor local.'));}
 const data=await response.json();if(!Array.isArray(data))throw new Error('El catálogo no devolvió una lista de productos.');return ids.map(id=>{const p=data.find(p=>String(p.id)===id);if(!p)throw new Error('El catálogo no devolvió el producto '+id+'.');if(!Number.isFinite(p.precio?.efectivo)||!p.imagenes?.['0']?.['250'])throw new Error('El producto '+id+' no tiene precio efectivo o foto principal.');return p})
 }finally{clearTimeout(timer)}
 }

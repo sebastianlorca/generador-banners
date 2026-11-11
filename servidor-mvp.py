@@ -6,12 +6,51 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 import json
 import re
+import os
+import ssl
+import subprocess
+import tempfile
+from contextlib import contextmanager
+from http.client import parse_headers
+from io import BytesIO
+from types import SimpleNamespace
 from planilla_banners import parse_workbook
 
 ROOT = Path(__file__).resolve().parent
 CATALOG = 'https://api.pcfactory.cl/pcfactory-services-catalogo/v1/catalogo/productos/banners'
 
 CAMPAIGNS = {'f1bbd79b-c557-4f2f-80bd-8d101480f810', 'a1a77a6a-dc62-4fd9-983f-f1f8562d7a2f'}
+
+@contextmanager
+def open_upstream(target, timeout=20):
+    request = Request(target, headers={'User-Agent': 'PCFactory-Banner-MVP/1.0'})
+    try:
+        response = urlopen(request, timeout=timeout)
+    except URLError as error:
+        if os.name != 'nt' or not isinstance(error.reason, ssl.SSLCertVerificationError):
+            raise
+        # Schannel can retrieve intermediate certificates using Windows trust.
+        # Keep certificate and hostname verification enabled.
+        curl = Path(os.environ['SystemRoot']) / 'System32' / 'curl.exe'
+        with tempfile.TemporaryDirectory(prefix='banner-https-') as directory:
+            body = Path(directory) / 'body'
+            headers = Path(directory) / 'headers'
+            result = subprocess.run([
+                str(curl), '--silent', '--show-error', '--fail', '--location',
+                '--proto', '=https', '--proto-redir', '=https',
+                '--max-time', str(timeout), '--max-filesize', str(40 * 1024 * 1024),
+                '--user-agent', 'PCFactory-Banner-MVP/1.0',
+                '--dump-header', str(headers), '--output', str(body), target,
+            ], capture_output=True, timeout=timeout + 5, creationflags=subprocess.CREATE_NO_WINDOW)
+            if result.returncode:
+                raise URLError('HTTPS de Windows: ' + result.stderr.decode('utf-8', errors='replace').strip()) from error
+            final_headers = headers.read_bytes().strip().split(b'\r\n\r\n')[-1]
+            parsed_headers = parse_headers(BytesIO(final_headers.split(b'\r\n', 1)[1] + b'\r\n\r\n'))
+            with body.open('rb') as content:
+                yield SimpleNamespace(read=content.read, headers=parsed_headers)
+        return
+    with response:
+        yield response
 
 class Handler(SimpleHTTPRequestHandler):
     def sheets(self, params):
@@ -21,7 +60,7 @@ class Handler(SimpleHTTPRequestHandler):
             if not re.fullmatch(r'[A-Za-z0-9_-]{20,100}', spreadsheet):
                 raise ValueError('ID de Google Sheets no válido.')
             target = 'https://docs.google.com/spreadsheets/d/' + spreadsheet + '/export?format=xlsx'
-            with urlopen(Request(target, headers={'User-Agent': 'PCFactory-Banner-MVP/1.0'}), timeout=30) as upstream:
+            with open_upstream(target, timeout=30) as upstream:
                 content = upstream.read(40 * 1024 * 1024 + 1)
             if len(content) > 40 * 1024 * 1024:
                 raise ValueError('La planilla supera 40 MiB.')
@@ -71,7 +110,7 @@ class Handler(SimpleHTTPRequestHandler):
             if parsed.scheme != 'https' or not allowed:
                 return self.send_error(400, 'URL de foto no permitida')
         try:
-            with urlopen(Request(target, headers={'User-Agent': 'PCFactory-Banner-MVP/1.0'}), timeout=20) as upstream:
+            with open_upstream(target, timeout=20) as upstream:
                 content = upstream.read(12 * 1024 * 1024 + 1)
                 if len(content) > 12 * 1024 * 1024:
                     return self.send_error(502, 'Respuesta demasiado grande')
@@ -87,7 +126,7 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_header('Cache-Control', 'no-store')
                 self.end_headers()
                 self.wfile.write(content)
-        except (HTTPError, URLError, TimeoutError, ValueError, OSError) as error:
+        except (HTTPError, URLError, TimeoutError, ValueError, OSError, subprocess.SubprocessError) as error:
             print('Error consultando catalogo/imagen:', error)
             content = json.dumps({'error': 'El servidor local no pudo consultar PC Factory: ' + str(error)}, ensure_ascii=False).encode('utf-8')
             self.send_response(502)
