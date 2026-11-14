@@ -68,10 +68,13 @@ assert(second.getElementById('nameLeft').value!=='Nombre editado','Aislar grupos
 const cutout=first.getElementById('removeWhiteLeft');cutout.checked=false;cutout.dispatchEvent(new Event('change'));await wait(()=>!first.getElementById('imageLeft').disabled);
 assert(second.getElementById('removeWhiteLeft').checked,'Recorte independiente entre banners');
 cutout.checked=true;cutout.dispatchEvent(new Event('change'));await wait(()=>!first.getElementById('imageLeft').disabled);
-const custom=first.getElementById('customImageLeft'),image=first.getElementById('imageLeft');custom.value=location.origin+'/custom.svg';image.value='11';image.dispatchEvent(new Event('change'));await wait(()=>!image.disabled);
+const custom=first.getElementById('customImageLeft'),image=first.getElementById('imageLeft');assert(custom.type==='file'&&custom.accept==='image/*','Selector de archivo personalizado');const customData=new frames[0].contentWindow.DataTransfer();customData.items.add(new frames[0].contentWindow.File([await(await fetch('/custom.svg')).blob()],'foto.svg',{type:'image/svg+xml'}));custom.files=customData.files;custom.dispatchEvent(new Event('change'));await wait(()=>!image.disabled);
 assert(image.value==='11'&&cutout.disabled,'Imagen personalizada sin controles de recorte');
 const pixels=first.getElementById('canvas').getContext('2d').getImageData(0,0,1920,525).data;let whites=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]===255&&pixels[i+1]===255&&pixels[i+2]===255&&pixels[i+3]===255)whites++;
 assert(whites>100,'Conservar blancos de la imagen personalizada');
+image.value='1';image.dispatchEvent(new Event('change'));await wait(()=>!image.disabled);assert(image.value==='1'&&!cutout.disabled,'Volver al catalogo');
+image.value='11';image.dispatchEvent(new Event('change'));await wait(()=>!image.disabled);assert(image.value==='11','Reutilizar archivo adjunto');
+const invalidData=new frames[0].contentWindow.DataTransfer();invalidData.items.add(new frames[0].contentWindow.File(['imagen invalida'],'rota.png',{type:'image/png'}));custom.files=invalidData.files;custom.dispatchEvent(new Event('change'));await wait(()=>!image.disabled);assert(image.value==='1'&&!first.getElementById('download').disabled,'Archivo invalido vuelve al catalogo y permite exportar');
 $('exportFormat').value='webp';$('exportFormat').dispatchEvent(new Event('change'));
 assert(first.getElementById('exportFormat').value==='webp','Formato compartido');
 const sent=[];

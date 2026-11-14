@@ -12,6 +12,19 @@ function registeredBrand(product){
 const name=(product.marca?.nombre||'').trim();
 return name?name.replace(/[\s®]+$/u,'')+'®':'';
 }
+function automaticProductTitle(product){
+const family=String(product.familia?.nombre||'Producto').trim();
+const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const normalizedFamily=normalize(family),name=normalize(product.nombre);
+let pattern;
+if(/\b(?:notebooks?|desktops?)\b/.test(normalizedFamily))pattern=/\b(ideapad|gamer)\b/g;
+else if(/\bparlantes?\b/.test(normalizedFamily))pattern=/\b(portatil)\b/g;
+else if(/\bmonitor(?:es)?\b/.test(normalizedFamily))pattern=/\b(gamer|curvo)\b/g;
+const match=pattern?pattern.exec(name):null;
+const labels={ideapad:'IdeaPad',gamer:'Gamer',portatil:'Portátil',curvo:'Curvo'};
+const qualifier=match&&!new RegExp('\\b'+match[1]+'\\b').test(normalizedFamily)?labels[match[1]]:'';
+return [family,qualifier,registeredBrand(product)].filter(Boolean).join(' ');
+}
 function titleWithoutBrand(product){
 const brand=(product.marca?.nombre||'').trim().replace(/[\s®]+$/u,''),escapedBrand=brand.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const title=brand?String(product.bannerTitle||'').replace(new RegExp('\\s*'+escapedBrand+'\\s*®?\\s*$','iu'),'').trim():product.bannerTitle;
@@ -187,7 +200,7 @@ const width=300;let lines=[];let size=16;
 for(;size>=10;size--){ctx.font='400 '+size+'px Ubuntu';lines=[];let line='';for(const word of String(name||'').split(/\s+/)){const candidate=line?line+' '+word:word;if(line&&ctx.measureText(candidate).width>width){lines.push(line);line=word}else{line=candidate}}if(line)lines.push(line);if(lines.length<=2)break}
 ctx.fillStyle=textColor('name','#414749');ctx.font='400 '+Math.max(10,size)+'px Ubuntu';lines.forEach((line,index)=>ctx.fillText(line,x+20,priceY-26+index*17));
 }
-function product(p,img,x,priceY,zoom=100,offsetX=0,offsetY=0){const imageBottom=priceY-55;const imageTop=105;const imageHeight=imageBottom-imageTop;const baseScale=Math.min(285/img.width,imageHeight/img.height);const scale=baseScale*zoom/100;const originalCenter=imageTop+imageHeight/2;const imageY=Math.min(originalCenter-img.height*scale/2,imageBottom-img.height*scale);ctx.drawImage(img,x+155-img.width*scale/2+offsetX,imageY+offsetY,img.width*scale,img.height*scale);const title=p.bannerTitle??((p.familia?.nombre||'Producto')+' '+registeredBrand(p));fitText(title,x+20,priceY-47,300,22,16,textColor('title','#414749'));drawProductName(p.nombre,x,priceY);
+function product(p,img,x,priceY,zoom=100,offsetX=0,offsetY=0){const imageBottom=priceY-55;const imageTop=105;const imageHeight=imageBottom-imageTop;const baseScale=Math.min(285/img.width,imageHeight/img.height);const scale=baseScale*zoom/100;const originalCenter=imageTop+imageHeight/2;const imageY=Math.min(originalCenter-img.height*scale/2,imageBottom-img.height*scale);ctx.drawImage(img,x+155-img.width*scale/2+offsetX,imageY+offsetY,img.width*scale,img.height*scale);const title=p.bannerTitle??automaticProductTitle(p);fitText(title,x+20,priceY-47,300,22,16,textColor('title','#414749'));drawProductName(p.nombre,x,priceY);
 drawPricePlate(ctx,'horizontal',x,priceY,308,71,p.precio.descuento>0);fitText(money(p.precio.efectivo),x+9,priceY+46,175,36,24,textColor('price','#fff'));if(Number.isFinite(p.precio.referencia))fitText('Referencial: '+money(p.precio.referencia),x+13,priceY+65,175,12,10,textColor('price','#fff'),'400');const discount=p.precio.descuento;if(Number.isFinite(discount)&&discount>0)fitText('-'+Math.round(discount)+'%',x+191,priceY+53,111,48,28,textColor('discount','#104d32'));}
 function singleProduct(p,img,zoom,offsetX,offsetY){
 const scale=Math.min(390/img.width,270/img.height)*zoom/100;
@@ -202,11 +215,11 @@ if(Number.isFinite(p.precio.referencia))fitText('Referencial: '+money(p.precio.r
 if(Number.isFinite(p.precio.descuento)&&p.precio.descuento>0)fitText('-'+Math.round(p.precio.descuento)+'%',974,353,70,32,22,textColor('discount','#104d32'));
 }
 function calculatedDiscount(price,reference){return reference>0&&reference>price?Math.max(0,Math.min(100,Math.round((reference-price)/reference*100))):0}
-function populateEditors(products,slots){products.forEach((p,i)=>{const index=slots[i].index,control=controlNames[index];if(editorProductIds[index]!==slots[i].id){$('title'+control).value=((p.familia?.nombre||'Producto')+' '+registeredBrand(p)).trim();$('name'+control).value=p.nombre||'';$('price'+control).value=p.precio.efectivo;$('reference'+control).value=Number.isFinite(p.precio.referencia)?p.precio.referencia:p.precio.efectivo;editorProductIds[index]=slots[i].id}for(const field of ['title','name','price','reference'])$(field+control).disabled=false;$('image'+control).disabled=false;$('customImage'+control).disabled=false})}
+function populateEditors(products,slots){products.forEach((p,i)=>{const index=slots[i].index,control=controlNames[index];if(editorProductIds[index]!==slots[i].id){$('title'+control).value=automaticProductTitle(p);$('name'+control).value=p.nombre||'';$('price'+control).value=p.precio.efectivo;$('reference'+control).value=Number.isFinite(p.precio.referencia)?p.precio.referencia:p.precio.efectivo;editorProductIds[index]=slots[i].id}for(const field of ['title','name','price','reference'])$(field+control).disabled=false;$('image'+control).disabled=false;$('customImage'+control).disabled=false})}
 function editedProduct(p,index){const control=controlNames[index];const prices=['price','reference'].map(field=>{const input=$(field+control),value=Number(input.value);if(String(input.value).trim()===''||!Number.isSafeInteger(value)||value<0)throw new Error('Producto '+(index+1)+': ingresa precios enteros mayores o iguales a cero.');return value});const [price,reference]=prices,discount=calculatedDiscount(price,reference);$('discount'+control).textContent=discount?'Descuento calculado: '+discount+' %':'Sin descuento (el referencial debe ser mayor al precio).';return {...p,bannerTitle:$('title'+control).value,nombre:$('name'+control).value,precio:{...p.precio,efectivo:price,referencia:reference,descuento:discount}}}
 function imageOptions(index){const name=controlNames[index];return {removeWhite:$('removeWhite'+name).checked,tolerance:Number($('tolerance'+name).value),removeInterior:$('removeInterior'+name).checked}}
 function syncCutoutControls(){for(let index=0;index<3;index++){const name=controlNames[index],disabled=busy||editorProductIds[index]===null,custom=$('image'+name).value==='11';$('removeWhite'+name).disabled=disabled||custom;$('removeInterior'+name).disabled=disabled||custom||!$('removeWhite'+name).checked;$('tolerance'+name).disabled=disabled||custom||!$('removeWhite'+name).checked}}
-async function loadProductImage(p,selection,options,customUrl=''){
+async function loadProductImage(p,selection,options,customFile=null){
 async function prepare(url,label,custom=false){
 const image=await loadImage(url,label);
 // Check pixel access before drawing a custom image into either preview.
@@ -214,10 +227,11 @@ const probe=document.createElement('canvas');probe.width=1;probe.height=1;const 
 return !custom&&options.removeWhite?removeWhiteBackground(image,options.tolerance,options.removeInterior):image;
 }
 async function attempt(number){const url=p.imagenes?.[String(number-1)]?.['250'];if(!url)throw new Error('Imagen no disponible');return prepare(productImageUrl(url),'la imagen '+number+' del producto '+p.id)}
-customUrl=customUrl.trim();
 if(selection===11){
-try{const url=new URL(customUrl);if(!['http:','https:'].includes(url.protocol))throw new Error('URL no permitida');const source=url.protocol==='https:'&&url.host==='assets.pcfactory.cl'&&url.pathname.startsWith('/public/foto/')?productImageUrl(url.href):url.href;return {image:await prepare(source,'la imagen personalizada',true),selection,fallback:false}}
+let source;
+try{if(!customFile)throw new Error('Adjunta una imagen');source=URL.createObjectURL(customFile);return {image:await prepare(source,'la imagen personalizada',true),selection,fallback:false}}
 catch{return {image:await attempt(1),selection:1,fallback:true}}
+finally{if(source)URL.revokeObjectURL(source)}
 }
 try{return {image:await attempt(selection),selection,fallback:false}}catch(error){if(selection===1)throw error;return {image:await attempt(1),selection:1,fallback:true}}
 }
@@ -231,7 +245,7 @@ syncCutoutControls();
 try{
 const options=imageOptions(index);
 if(!Number.isFinite(options.tolerance)||options.tolerance<5||options.tolerance>90)throw new Error('La intensidad debe estar entre 5 y 90.');
-const result=await loadProductImage(scene.products[position],Number(selector.value),options,$('customImage'+controlNames[index]).value);
+const result=await loadProductImage(scene.products[position],Number(selector.value),options,$('customImage'+controlNames[index]).files[0]);
 if(lastScene!==scene)return;
 scene.renderedImages[position]=result.image;scene.imageSelections[position]=result.selection;selector.value=String(result.selection);
 renderScene(scene);await Promise.all(sceneCanvases(scene).map(exportBlob));
@@ -419,7 +433,7 @@ if(scene.formats.mobile)renderMobile(scene,edited);if(scene.formats.story)render
 }
 for(let i=0;i<3;i++){
 const name=controlNames[i],group=document.createElement('details');group.id='controls'+i;group.hidden=true;
-group.innerHTML='<summary>Producto '+(i+1)+' - Editar controles</summary><div class="text-fields"><label>Título principal<input id="title'+name+'" type="text" disabled></label><label>Nombre del producto<input id="name'+name+'" type="text" disabled></label><label>Precio ($)<input id="price'+name+'" type="number" min="0" step="1" required disabled></label><label>Precio referencial ($)<input id="reference'+name+'" type="number" min="0" step="1" required disabled></label><small id="discount'+name+'">Se completa al generar con el ID.</small></div><div class="image-choice"><label>Imagen del producto<select id="image'+name+'" disabled>'+Array.from({length:10},(_,index)=>'<option value="'+(index+1)+'">'+(index+1)+'</option>').join('')+'<option value="11">11 - Personalizada</option></select></label><label>Imagen personalizada<input id="customImage'+name+'" type="text" inputmode="url" placeholder="https://ejemplo.cl/imagen.png" disabled></label><small>Opciones 1 a 10: fotos del cat&aacute;logo. Opci&oacute;n 11: URL personalizada, aplicada al salir del campo. Si est&aacute; vac&iacute;a o falla, se usa la imagen 1.</small></div><div class="zoom-options">'+[['zoom'+name,'Zoom (%)',50,250,100],['offset'+name+'X','Eje X (px)',-500,500,0],['offset'+name+'Y','Eje Y (px)',-500,500,0],['mobileZoom'+name,'Mobile: Zoom (%)',50,250,100],['mobileX'+name,'Mobile: Eje X (px)',-150,150,0],['mobileY'+name,'Mobile: Eje Y (px)',-150,150,0]].map(([id,label,min,max,value])=>'<label>'+label+'<div class="zoom-row"><input id="'+id+'" type="range" min="'+min+'" max="'+max+'" value="'+value+'"><input id="'+id+'Number" type="number" min="'+min+'" max="'+max+'" value="'+value+'" step="1" aria-label="'+label+' producto '+(i+1)+'"></div></label>').join('')+'</div>';
+group.innerHTML='<summary>Producto '+(i+1)+' - Editar controles</summary><div class="text-fields"><label>Título principal<input id="title'+name+'" type="text" disabled></label><label>Nombre del producto<input id="name'+name+'" type="text" disabled></label><label>Precio ($)<input id="price'+name+'" type="number" min="0" step="1" required disabled></label><label>Precio referencial ($)<input id="reference'+name+'" type="number" min="0" step="1" required disabled></label><small id="discount'+name+'">Se completa al generar con el ID.</small></div><div class="image-choice"><label>Imagen del producto<select id="image'+name+'" disabled>'+Array.from({length:10},(_,index)=>'<option value="'+(index+1)+'">'+(index+1)+'</option>').join('')+'<option value="11">11 - Personalizada</option></select></label><label>Imagen personalizada<input id="customImage'+name+'" type="file" accept="image/*" disabled></label><small>Opciones 1 a 10: fotos del cat&aacute;logo. Adjunta una imagen para seleccionar autom&aacute;ticamente la opci&oacute;n 11. El archivo se usa en este navegador. Si falta o no se puede abrir, se usa la imagen 1.</small></div><div class="zoom-options">'+[['zoom'+name,'Zoom (%)',50,250,100],['offset'+name+'X','Eje X (px)',-500,500,0],['offset'+name+'Y','Eje Y (px)',-500,500,0],['mobileZoom'+name,'Mobile: Zoom (%)',50,250,100],['mobileX'+name,'Mobile: Eje X (px)',-150,150,0],['mobileY'+name,'Mobile: Eje Y (px)',-150,150,0]].map(([id,label,min,max,value])=>'<label>'+label+'<div class="zoom-row"><input id="'+id+'" type="range" min="'+min+'" max="'+max+'" value="'+value+'"><input id="'+id+'Number" type="number" min="'+min+'" max="'+max+'" value="'+value+'" step="1" aria-label="'+label+' producto '+(i+1)+'"></div></label>').join('')+'</div>';
 const mobileGroup=document.createElement('details');mobileGroup.id='mobileControls'+i;mobileGroup.hidden=true;
 mobileGroup.innerHTML='<summary>Ajustar imagen mobile</summary><div class="zoom-options"></div>';
 const desktopZoom=group.querySelector('.zoom-options'),mobileZoom=mobileGroup.querySelector('.zoom-options');
@@ -436,7 +450,7 @@ group.querySelector('.image-choice').after(cutout);
 $('imageControls').append(group);$('controlParking').append(mobileGroup);
 for(const field of ['removeWhite','removeInterior','tolerance'])$(field+name).addEventListener('change',()=>{syncCutoutControls();changeProductImage(i)});
 $('image'+name).addEventListener('change',()=>changeProductImage(i));
-$('customImage'+name).addEventListener('change',()=>{if($('image'+name).value==='11')changeProductImage(i)});
+$('customImage'+name).addEventListener('change',()=>{if($('customImage'+name).files.length)$('image'+name).value='11';if($('image'+name).value==='11')changeProductImage(i)});
 for(const field of ['title','name','price','reference'])$(field+name).addEventListener('input',refreshEdits);
 for(const id of ['zoom'+name,'offset'+name+'X','offset'+name+'Y','mobileZoom'+name,'mobileX'+name,'mobileY'+name,'storyZoom'+name,'storyX'+name,'storyY'+name,'fhdZoom'+name,'fhdX'+name,'fhdY'+name,'miniZoom'+name,'miniX'+name,'miniY'+name,'horizontalZoom'+name,'horizontalX'+name,'horizontalY'+name,'horizontal3840Zoom'+name,'horizontal3840X'+name,'horizontal3840Y'+name]){const slider=$(id),number=$(id+'Number');function update(source){if(source.value===''||!Number.isFinite(Number(source.value)))return;const value=Math.max(Number(slider.min),Math.min(Number(slider.max),Math.round(Number(source.value))));slider.value=value;number.value=value;if(lastScene&&!busy)refreshEdits()}slider.addEventListener('input',()=>update(slider));number.addEventListener('input',()=>update(number));number.addEventListener('change',()=>{if(number.value==='')number.value=slider.value;update(number)})}
 }
@@ -454,7 +468,7 @@ textColors=readTextColors();const ids=slots.map(slot=>slot.id);await Promise.all
 const [bg,products,mobileBg,storyBg,fhdBg,miniBg,horizontalBg,horizontal3840Bg]=await Promise.all([formats.desk?loadBackground(ids.length):null,getProducts(ids),formats.mobile?loadMobileBackground():null,formats.story?loadStoryBackground():null,formats.fhd?loadFhdBackground():null,formats.mini?loadMiniBackground():null,formats.horizontal?loadHorizontalBackground():null,formats.horizontal3840?loadHorizontal3840Background():null]);
 const options=slots.map(slot=>imageOptions(slot.index));
 if(options.some(option=>!Number.isFinite(option.tolerance)||option.tolerance<5||option.tolerance>90))throw new Error('La intensidad debe estar entre 5 y 90.');
-const results=await Promise.all(products.map((p,i)=>loadProductImage(p,Number($('image'+controlNames[slots[i].index]).value),options[i],$('customImage'+controlNames[slots[i].index]).value)));
+const results=await Promise.all(products.map((p,i)=>loadProductImage(p,Number($('image'+controlNames[slots[i].index]).value),options[i],$('customImage'+controlNames[slots[i].index]).files[0])));
 const renderedImages=results.map(result=>result.image),imageSelections=results.map(result=>result.selection);
 results.forEach((result,i)=>{$('image'+controlNames[slots[i].index]).value=String(result.selection)});populateEditors(products,slots);
 const scene={bg,products,mobileBg,storyBg,fhdBg,miniBg,horizontalBg,horizontal3840Bg,renderedImages,slots,imageSelections,imageOptions:options,formats};

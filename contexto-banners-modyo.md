@@ -1,13 +1,15 @@
 # Contexto: generador de banners e integración con Modyo
 
-Última actualización: 13 de noviembre de 2026.
+Última actualización: 14 de noviembre de 2026.
 
-## Estado consolidado para retomar (13 de noviembre de 2026)
+## Estado consolidado para retomar (14 de noviembre de 2026)
 
-Esta sección y los detalles del 13 de noviembre prevalecen sobre los pendientes y comportamientos históricos del documento. Los cambios siguientes están implementados en local, tanto Individual como Masivo cuando corresponda; no se trasladaron ni publicaron en Modyo.
+Esta sección, actualizada con la confirmación del usuario del 14 de noviembre, prevalece sobre los pendientes y estados históricos del documento. Los detalles de implementación del 13 de noviembre siguen vigentes. Los cambios siguientes están implementados en local, tanto Individual como Masivo cuando corresponda; no se trasladaron ni publicaron en Modyo.
 
 ### Cambios realizados
 
+- Imagen personalizada mediante archivo adjunto (14 de noviembre): el generador local reemplaza el input de URL por un selector de archivos de imagen en Individual y Masivo. Adjuntar selecciona automáticamente la opción 11 y actualiza los formatos generados, conservando blancos y transparencia. Se puede alternar con el catálogo y reutilizar el archivo al regenerar el mismo producto; cambiar el ID limpia el adjunto. Si falta el archivo o no se puede decodificar, vuelve a la imagen 1. El archivo se procesa en el navegador, no se sube ni persiste tras recargar. Las URLs Blob de carga se liberan al terminar. Prueba Edge con servicios simulados y sintaxis JavaScript correctas, incluyendo adjunto, blancos, alternancia y archivo inválido. No se trasladó a Modyo. Esta sección reemplaza las instrucciones históricas de URL personalizada para el entorno local.
+- Títulos automáticos según el nombre (14 de noviembre): notebooks y desktop reconocen IdeaPad/Gamer, parlantes reconocen Portátil y monitores reconocen Gamer/Curvo. Se usa solo la primera característica reconocida según su posición en el nombre (gamer curvo → Monitor Gamer; curvo gamer → Monitor Curvo), sin repetirla si ya aparece en la familia. Sin coincidencias se conserva familia + marca. Implementado en `mvp-local-generator.js` para Individual y Masivo; conserva títulos editados al regenerar el mismo ID y la separación visual de marca. No se trasladó a Modyo. Validación: 14 casos de títulos, sintaxis JavaScript y prueba de navegador Edge con servicios simulados correctos. Recargar con Ctrl+F5; los productos ya cargados conservan su título, por lo que hay que recargar la página o cambiar el ID para obtener el nuevo automático.
 - Carga de Google Sheets por semana: elegir W01–W52 antes de pulsar «Cargar / actualizar semana». Se consultan diez filas de esa hoja en paralelo, sin descargar el Excel completo. Espera de 120 segundos por consulta y 150 segundos en navegador.
 - Campaña independiente por banner desde la planilla, cruzada con las cinco entradas configuradas. Masivo no requiere elegir una campaña en Individual; se corrigió el bloqueo del botón Generar por esa validación antigua.
 - Resumen masivo en tarjetas: nombre completo, IDs, campaña, celda de referencia, estados y formatos seleccionables. Contador de banners listos y por revisar. Las pestañas de resultados mantienen sus etiquetas abreviadas.
@@ -29,21 +31,24 @@ Esta sección y los detalles del 13 de noviembre prevalecen sobre los pendientes
 
 ### Validación, archivos y reinicio
 
-- Última comprobación después del cambio de Horizontal 3840: pasó `python test_banners_browser.py` en Edge con servicios simulados, `node --check mvp-local-generator.js` y `git diff --check`. Las ocho pruebas de planilla pasaron durante el cambio de carga por semana. Se verificaron Blob PNG/WebP y píxeles de los SVG; no se certificó una generación completa con todos los servicios reales.
-- Archivos de esta serie de cambios: `mvp-local-generator.js`, `mvp-batch.js`, `mvp-batch.css`, `mvp.html`, `mvp-local.js`, `servidor-mvp.py`, `planilla_banners.py`, ambas pruebas y este contexto. `ejemplos de banners/` contiene las referencias del usuario y aparece sin seguimiento en Git.
+- Última validación del 14 de noviembre: `node --check mvp-local-generator.js`, `python test_banners_browser.py` y `git diff --check` correctos tras reemplazar la URL personalizada por archivo adjunto. La prueba de navegador cubre selección automática de la opción 11, conservación de blancos, retorno al catálogo, reutilización del adjunto y fallback ante archivo inválido. Los cambios de títulos y adjuntos se validaron con servicios simulados; la confirmación previa del usuario sobre recursos reales corresponde al estado anterior a estas dos mejoras.
+- Comprobación automatizada registrada después del cambio de Horizontal 3840: pasó `python test_banners_browser.py` en Edge con servicios simulados, `node --check mvp-local-generator.js` y `git diff --check`. Las ocho pruebas de planilla pasaron durante el cambio de carga por semana. Se verificaron Blob PNG/WebP y píxeles de los SVG. El 14 de noviembre el usuario confirmó como completadas la revisión visual con recursos reales y la comprobación de ambos ciclos completos (antiguos pendientes 1 y 2).
+- Archivos de esta serie de cambios: `mvp-local-generator.js`, `mvp-batch.js`, `mvp-batch.css`, `mvp.html`, `mvp-local.js`, `servidor-mvp.py`, `planilla_banners.py`, ambas pruebas y este contexto. `ejemplos de banners/` contiene las referencias del usuario.
 - Para aplicar los últimos cambios visuales: Ctrl+F5 y generar otra vez. Si todavía corre el servidor anterior al cambio de carga por semana, cerrar Python y ejecutar `iniciar-mvp.cmd` antes de recargar. Cambiar semana limpia el lote y requiere cargarla de nuevo.
-- No se hizo commit ni push de estos cambios en esta conversación. No se modificaron los archivos del widget Modyo ni se publicó un despliegue.
+- El 14 de noviembre el usuario confirmó como completado el guardado y envío de los cambios en Git (antiguo pendiente 6). No se registraron aquí hashes ni detalles del envío. Esa confirmación es anterior a las mejoras de títulos automáticos y archivos adjuntos: no se hizo commit ni push de esas mejoras ni de las actualizaciones posteriores del contexto en esta conversación. No se modificaron los archivos del widget Modyo ni se publicó un despliegue.
+
+### Pendientes completados (confirmación del usuario, 14 de noviembre de 2026)
+
+- Punto 1: revisión visual de banners con campañas, fondos limpios y productos reales, incluyendo posiciones, títulos largos, portaprecios, ® reducido y los cuatro formatos con marca separada.
+- Punto 2: comprobación de ambos ciclos completos con carga por semana, precios y campañas distintos, errores parciales, ediciones, descargas PNG/WebP, apertura Blob y revisión de tiempos y memoria con un lote real. No se consignaron métricas en esta actualización.
+- Punto 6: guardado y envío de los cambios en Git, conservando el historial.
 
 ### Pendientes vigentes
 
-1. Revisar visualmente los banners con campañas, fondos limpios y productos reales: posiciones, títulos largos, portaprecios, ® reducido y los cuatro formatos con marca separada. Los SVG no eliminan cajas ya incluidas en el fondo.
-2. Comprobar ambos ciclos completos con carga por semana, precios y campañas distintos, errores parciales, ediciones, descargas PNG/WebP y apertura Blob en pestañas. Medir tiempos y memoria con un lote real.
-3. Mejorar títulos automáticos según el nombre: Ideapad/notebook gamer en notebooks y desktop, portátil en parlantes y gamer/curvo en monitores. Este pendiente sigue abierto; separar la marca no implementa esas reglas.
-4. Tras validar local, trasladar expresamente las mejoras a Modyo y verificar CORS, campañas, imágenes, Canvas y exportación en el CMS. Los SVG están embebidos localmente; no existen nuevos campos de portaprecio en las entradas.
-5. Si se requieren campañas adicionales, ampliar las cinco entradas configuradas o implementar un listado dinámico. Mini Tótem aún no tiene asignación de uno de los nuevos SVG.
-6. Guardar los cambios en Git y enviarlos cuando se solicite, conservando el historial.
+1. Trasladar expresamente las mejoras locales validadas a Modyo, incluidos los nuevos títulos automáticos y el selector de archivos para imagen personalizada, y verificar CORS, campañas, imágenes, Canvas y exportación en el CMS (antiguo punto 4). Los SVG están embebidos localmente; no existen nuevos campos de portaprecio en las entradas.
+2. Si se requieren campañas adicionales, ampliar las cinco entradas configuradas o implementar un listado dinámico. Mini Tótem aún no tiene asignación de uno de los nuevos SVG (antiguo punto 5).
 
-Ya no son pendientes locales: reducir ®, separar fondos y portaprecios con los SVG acordados, campaña por banner desde planilla, elegir semana antes de cargar y la corrección del botón Generar en Masivo.
+Ya no son pendientes locales: reducir ®, separar fondos y portaprecios con los SVG acordados, campaña por banner desde planilla, elegir semana antes de cargar, la corrección del botón Generar en Masivo, las reglas de títulos automáticos y reemplazar la URL personalizada por archivo adjunto.
 
 ## Marca y título separados en Horizontal 3840 (13 de noviembre de 2026)
 
