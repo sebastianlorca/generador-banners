@@ -1,6 +1,183 @@
 # Contexto: generador de banners e integración con Modyo
 
-Última actualización: 10 de noviembre de 2026.
+Última actualización: 13 de noviembre de 2026.
+
+## Estado consolidado para retomar (13 de noviembre de 2026)
+
+Esta sección y los detalles del 13 de noviembre prevalecen sobre los pendientes y comportamientos históricos del documento. Los cambios siguientes están implementados en local, tanto Individual como Masivo cuando corresponda; no se trasladaron ni publicaron en Modyo.
+
+### Cambios realizados
+
+- Carga de Google Sheets por semana: elegir W01–W52 antes de pulsar «Cargar / actualizar semana». Se consultan diez filas de esa hoja en paralelo, sin descargar el Excel completo. Espera de 120 segundos por consulta y 150 segundos en navegador.
+- Campaña independiente por banner desde la planilla, cruzada con las cinco entradas configuradas. Masivo no requiere elegir una campaña en Individual; se corrigió el bloqueo del botón Generar por esa validación antigua.
+- Resumen masivo en tarjetas: nombre completo, IDs, campaña, celda de referencia, estados y formatos seleccionables. Contador de banners listos y por revisar. Las pestañas de resultados mantienen sus etiquetas abreviadas.
+- Portaprecios SVG superpuestos al fondo, reemplazando las figuras antiguas en los formatos asignados. SVG horizontal siempre conserva su verde; el segundo SVG oculta solo `DCTO` si no hay descuento. Mini Tótem mantiene su caja anterior.
+- ® al 50 % del tamaño del texto de marca, elevado, en los títulos y líneas de marca.
+- Principal Mobile, Principal simple, FHD y Horizontal 3840: marca arriba, título sin repetir la marca debajo y nombre del producto en la línea siguiente. Los títulos compartidos del editor se conservan; la separación se aplica al dibujar esos cuatro formatos.
+- Vistas previas con enlaces Blob: clic o clic derecho para abrir en otra pestaña, PNG/WebP según selección, actualizados tras ediciones válidas. Son URLs temporales del navegador.
+
+| Formato | Portaprecio actual | Texto superior |
+| --- | --- | --- |
+| Principal simple, un producto | Segundo SVG, DCTO condicional | Marca → título sin marca → nombre |
+| Principal doble y triple | SVG horizontal, verde permanente | Título compartido con marca → nombre |
+| Principal Mobile | Segundo SVG, DCTO condicional | Marca → título sin marca → nombre |
+| Storie | SVG horizontal, verde permanente | Título compartido con marca → nombre |
+| FHD | Segundo SVG, DCTO condicional | Marca → título sin marca → nombre |
+| Horizontal 5760 | SVG horizontal, verde permanente | Título compartido con marca → nombre |
+| Horizontal 3840 | Segundo SVG, DCTO condicional | Marca → título sin marca → nombre |
+| Mini Tótem | Caja anterior dibujada por código | Título compartido con marca → nombre |
+
+### Validación, archivos y reinicio
+
+- Última comprobación después del cambio de Horizontal 3840: pasó `python test_banners_browser.py` en Edge con servicios simulados, `node --check mvp-local-generator.js` y `git diff --check`. Las ocho pruebas de planilla pasaron durante el cambio de carga por semana. Se verificaron Blob PNG/WebP y píxeles de los SVG; no se certificó una generación completa con todos los servicios reales.
+- Archivos de esta serie de cambios: `mvp-local-generator.js`, `mvp-batch.js`, `mvp-batch.css`, `mvp.html`, `mvp-local.js`, `servidor-mvp.py`, `planilla_banners.py`, ambas pruebas y este contexto. `ejemplos de banners/` contiene las referencias del usuario y aparece sin seguimiento en Git.
+- Para aplicar los últimos cambios visuales: Ctrl+F5 y generar otra vez. Si todavía corre el servidor anterior al cambio de carga por semana, cerrar Python y ejecutar `iniciar-mvp.cmd` antes de recargar. Cambiar semana limpia el lote y requiere cargarla de nuevo.
+- No se hizo commit ni push de estos cambios en esta conversación. No se modificaron los archivos del widget Modyo ni se publicó un despliegue.
+
+### Pendientes vigentes
+
+1. Revisar visualmente los banners con campañas, fondos limpios y productos reales: posiciones, títulos largos, portaprecios, ® reducido y los cuatro formatos con marca separada. Los SVG no eliminan cajas ya incluidas en el fondo.
+2. Comprobar ambos ciclos completos con carga por semana, precios y campañas distintos, errores parciales, ediciones, descargas PNG/WebP y apertura Blob en pestañas. Medir tiempos y memoria con un lote real.
+3. Mejorar títulos automáticos según el nombre: Ideapad/notebook gamer en notebooks y desktop, portátil en parlantes y gamer/curvo en monitores. Este pendiente sigue abierto; separar la marca no implementa esas reglas.
+4. Tras validar local, trasladar expresamente las mejoras a Modyo y verificar CORS, campañas, imágenes, Canvas y exportación en el CMS. Los SVG están embebidos localmente; no existen nuevos campos de portaprecio en las entradas.
+5. Si se requieren campañas adicionales, ampliar las cinco entradas configuradas o implementar un listado dinámico. Mini Tótem aún no tiene asignación de uno de los nuevos SVG.
+6. Guardar los cambios en Git y enviarlos cuando se solicite, conservando el historial.
+
+Ya no son pendientes locales: reducir ®, separar fondos y portaprecios con los SVG acordados, campaña por banner desde planilla, elegir semana antes de cargar y la corrección del botón Generar en Masivo.
+
+## Marca y título separados en Horizontal 3840 (13 de noviembre de 2026)
+
+- Horizontal 3840 local muestra marca con ® al 50 % arriba, título sin repetir la marca debajo y nombre del producto en la siguiente línea, según `ejemplos de banners/Banners Completos/PANTALLA-HORIZONTAL-3840X1080 -.png`.
+- Conserva posiciones, tamaños y portaprecio SVG; utiliza la extracción de marca compartida con Mobile, Principal simple y FHD. Aplica a Individual y Masivo locales. No modifica el widget Modyo. Recargar con Ctrl+F5 y generar nuevamente.
+
+## Marca y título separados en FHD (13 de noviembre de 2026)
+
+- FHD local muestra marca con ® al 50 % arriba, título sin repetir la marca debajo y nombre del producto en la siguiente línea. Se conservan las posiciones y tamaños, ya alineados con `ejemplos de banners/Banners Completos/PANTALLA FHD 1920X1080 -.png`; se aplica la misma extracción del sufijo de marca usada en Mobile y Principal simple.
+- Aplica a Individual y Masivo locales. No modifica el widget Modyo. Recargar con Ctrl+F5 y generar nuevamente.
+
+## Abrir vistas previas Blob en otra pestaña (13 de noviembre de 2026)
+
+- Cada canvas generado localmente está dentro de un enlace a una imagen Blob, con `target="_blank"`. Permite clic directo o clic derecho → Abrir enlace en una pestaña nueva, en los siete formatos y en Individual/Masivo.
+- Se crean las imágenes con el formato PNG/WebP seleccionado y se actualizan después de cambios válidos de texto, precios, imágenes o ajustes. Una pausa de 180 ms evita exportar cada movimiento de un control; durante la actualización se retira el enlace anterior para no abrir una versión desactualizada.
+- Se liberan las URLs reemplazadas y al invalidar resultados o salir de la página. Los Blob son temporales del navegador, no URLs públicas ni almacenamiento permanente. No se modificó el widget Modyo.
+- Validación de navegador con servicios simulados: enlaces Blob PNG en Masivo, actualización al cambiar precios, y 19 enlaces WebP en Individual con siete formatos y tres productos, además del flujo existente de generación y descarga. Recargar con Ctrl+F5 y generar nuevamente.
+
+## Marca primero en Principal simple (13 de noviembre de 2026)
+
+- Principal de escritorio con un producto muestra marca con ® al 50 %, título sin repetir la marca y nombre del producto debajo, antes del portaprecio. Referencia: `ejemplos de banners/Banners Completos/MODYO BANNER PPAL-SIMPLE 1920x525.png`.
+- Comparte con Mobile la extracción del sufijo de marca del título; conserva el título editable compartido para los demás formatos. Aplica a Individual y Masivo locales. No cambia Principal doble/triple ni el widget Modyo. Recargar con Ctrl+F5 y generar nuevamente.
+
+## Marca primero en Principal Mobile (13 de noviembre de 2026)
+
+- Principal Mobile local presenta marca con ® reducido, título y nombre del producto en tres líneas, siguiendo `ejemplos de banners/Banners Completos/556x416.png`.
+- El título mobile elimina la marca del final del título compartido para evitar duplicarla (el título automático sigue siendo familia + marca en el editor y demás formatos). Los títulos manuales se conservan, salvo ese sufijo de marca. Cada línea se ajusta al ancho disponible sobre el portaprecio.
+- Aplica a Individual y Masivo locales. No modifica otros formatos ni el widget Modyo. Recargar con Ctrl+F5 y generar nuevamente.
+
+## Símbolo de marca al 50 % (13 de noviembre de 2026)
+
+- Implementado en el generador local: los títulos automáticos y líneas de marca dibujan ® al 50 % del tamaño del texto que acompaña, elevado junto a la marca. El resto del texto conserva su tamaño; la medición de ancho y los saltos de línea consideran el tamaño reducido.
+- Aplica a los siete formatos en Individual y Masivo. Los campos editables conservan el carácter ® normal. Reemplaza el pendiente histórico de reducir el símbolo. No se modificó el widget Modyo. Recargar con Ctrl+F5 y generar nuevamente.
+
+## Portaprecios SVG aplicados en local (13 de noviembre de 2026)
+
+- Se integraron los dos SVG proporcionados por el usuario como capas independientes del fondo, embebidos en `mvp-local-generator.js`. Se cargan una vez por generador y se reutilizan al editar. Sus márgenes transparentes se recortan al dibujar para mantener las posiciones y dimensiones de las cajas existentes.
+- SVG horizontal (gris `#42474a`, verde `#8ee8b2`): Principal doble, Principal triple, Storie y Horizontal 5760. Conserva siempre su zona verde, incluso sin descuento; el porcentaje solo aparece cuando es positivo. El precio no se expande hacia la zona verde al desaparecer el porcentaje.
+- Segundo SVG, denominado vertical internamente (gris `#45494b`, verde `#a9e4b0`): Principal simple, Mobile, FHD y Horizontal 3840. El grupo `DCTO` se oculta mediante `display="none"` cuando el descuento calculado es cero; también sucede si no hay referencial válido. Se conserva el grupo `PRECIO`. Se actualiza al editar precios o alternar fuentes.
+- Mini Tótem conserva el portaprecio anterior: el usuario no lo incluyó en la asignación. Se eliminaron los parches antiguos que copiaban partes del fondo en Mobile y Horizontal 3840 y el rectángulo blanco de FHD. Usar fondos limpios: los SVG no pueden eliminar portaprecios ya incluidos en una imagen de fondo.
+- Aplica a Individual y Masivo locales. No se modificó ni publicó el widget Modyo; no se añadieron campos nuevos a las entradas de campaña. Recargar con Ctrl+F5 y generar nuevamente.
+- Validación: sintaxis JavaScript y prueba Edge con servicios simulados, generación de siete formatos, descargas PNG/WebP y comprobación de píxeles reales del verde de ambos SVG. Se verificó que DCTO desaparece y reaparece al cambiar precios y que el horizontal conserva el verde sin descuento. Pendiente revisión visual con fondos y productos reales.
+- Esta implementación reemplaza el pendiente de portaprecios PNG y su regla genérica anterior: la nueva asignación SVG y la excepción del horizontal prevalecen.
+
+## Propuesta histórica de fondo y portaprecio separados — reemplazada por los SVG (13 de noviembre de 2026)
+
+Nota: lo siguiente conserva la propuesta inicial con PNG. La implementación vigente es la asignación SVG descrita arriba; no tratar esta propuesta como un pendiente actual del generador local.
+
+- El usuario confirmó la intención de cargar el fondo y el portaprecio como recursos independientes. Se confirmó la viabilidad; todavía no se ha modificado el generador para este comportamiento.
+- Referencia de banner completo: `ejemplos de banners/Banners Completos/556x416.png`.
+- Referencia de fondo sin portaprecio: `ejemplos de banners/Fondos/Destacados/556x416.png`.
+- El portaprecio se superpone al fondo. Si el producto tiene descuento válido según el cálculo existente (referencial mayor que oferta y mayor que cero), usar `ejemplos de banners/Fondos Porta Precios/portaprecio vertical.png` y mostrar el porcentaje.
+- Si no tiene descuento, usar `ejemplos de banners/Fondos Porta Precios/caja-precio.png`: no mostrar la zona verde del descuento ni el porcentaje.
+- La elección debe actualizarse al editar precios o alternar entre precios de planilla y catálogo, respetando la condición de cada producto.
+- Antes de implementar, revisar los recursos y definir su posición, escala y asignación por formato, además de cómo configurar sus URLs en las entradas de Modyo. La referencia indicada es mobile 556x416; no se han definido todavía variantes ni posiciones para los demás formatos.
+- Esta solicitud solo registra el acuerdo en el contexto; no autoriza ni representa una publicación en Modyo.
+
+## Corrección del botón Generar en Masivo (13 de noviembre de 2026)
+
+- Se eliminó la validación histórica de `snapshot().ready` en la generación masiva: exigía una campaña individual cargada aunque el selector estuviera oculto. Cada grupo continúa validando y aplicando su campaña de la planilla de forma independiente.
+- La prueba Edge inicia sin seleccionar campaña individual, carga la semana y pulsa el botón real Generar; comprueba generación, continuidad por errores y descargas. Para regresar a Individual, la prueba selecciona su campaña manualmente.
+- Se versionó `mvp-batch.js` en `mvp.html`. Aplicar Ctrl+F5; no requiere reiniciar Python. No cambia el widget Modyo.
+
+## Tarjetas del resumen masivo (13 de noviembre de 2026)
+
+- Reemplazan el resumen centrado previo: tarjetas alineadas a la izquierda, número y celda del banner, nombre completo, campaña y su celda como dato secundario, IDs y formatos como controles amplios seleccionables. El listado tiene hasta 580 px de altura y scroll.
+- Estados con texto e icono: verde para Listo, ámbar para Sin campaña, Sin formatos o Revisar IDs. El resumen superior cuenta banners listos y por revisar; se actualiza al cambiar formatos por grupo o generales. Listo indica configuración válida, no certifica acceso al catálogo ni exportación posterior. Los errores de precios siguen usando el fallback existente al catálogo.
+- Se versionó el CSS local para renovar caché. Cambio exclusivo del entorno local; no se modificó Modyo. Esta sección reemplaza la presentación visual centrada documentada previamente.
+
+## Carga por semana seleccionada (13 de noviembre de 2026)
+
+- El selector W01–W52 aparece antes del botón «Cargar / actualizar semana» y está disponible sin descargar la planilla. Cambiar de semana limpia el lote y requiere una nueva carga; cambiar de ciclo usa los datos de la semana ya cargada.
+- `/api/sheets` exige `week=W01` a `week=W52`. Ya no descarga el XLSX completo: consulta por CSV únicamente las diez filas necesarias de la hoja elegida (3, 9, 17, 18, 29, 37, 43, 51, 52 y 63), en paralelo. Las filas se consultan por separado para evitar que la inferencia de tipos de Google omita IDs numéricos en columnas con textos. Se conserva la lógica compartida de nombres, conceptos y precios, los huecos y las columnas posteriores a Z.
+- Se mantiene la espera de 120 segundos por consulta y 150 segundos en el navegador. Reiniciar Python con `iniciar-mvp.cmd` y recargar con Ctrl+F5. El widget Modyo no cambia.
+- Validación: ocho pruebas Python, sintaxis JavaScript y prueba Edge con servicios simulados. Una consulta real a la fila 9 de W45 devolvió nueve grupos y conservó el ID numérico simple 57629. No se midió el tiempo de una carga real completa ni se verificó aún la exportación de un lote con este flujo.
+- Esta sección reemplaza las instrucciones históricas de cargar toda la planilla antes de elegir la hoja.
+
+## Resumen visual de carga masiva (13 de noviembre de 2026)
+
+- Cada banner del resumen se presenta en una sola columna centrada: nombre, campaña o aviso y una fila de formatos que se adapta al ancho disponible. Se conserva el panel con scroll y las líneas entre banners, según la referencia del usuario. Cambio exclusivo de `mvp-batch.css`; requiere Ctrl+F5.
+
+## Tiempo de carga de planilla (13 de noviembre de 2026)
+
+- Se amplió la espera de descarga de Google Sheets de 30 a 120 segundos en el servidor y de 45 a 150 segundos en el navegador. La interfaz avisa que la carga puede tardar hasta dos minutos.
+- Reiniciar el servidor con `iniciar-mvp.cmd` y recargar con Ctrl+F5 para aplicar ambos cambios. Pendiente confirmar la carga con la planilla real; ampliar la espera no garantiza resolver lentitud o interrupciones de red.
+- Esta configuración reemplaza los tiempos históricos de descarga de Sheets indicados más abajo. No cambia los tiempos de catálogo, imágenes ni campañas.
+
+## Campaña por banner desde planilla (13 de noviembre de 2026)
+
+- En local, Forma de generar los banners pasa al primer paso. Diseño de campaña solo aparece y permite selección en Individual. Masivo no requiere una campaña general.
+- El lector devuelve `campaignConcept` y `campaignCell`: fila 3 para lunes a jueves y fila 37 para viernes a domingo, en la misma columna de los IDs desde E, incluidos huecos y columnas posteriores a Z.
+- Cada grupo masivo cruza su concepto con las cinco entradas configuradas: UUID, slug normalizado y nombre completo normalizado, en ese orden. Se normalizan mayúsculas, tildes, espacios y puntuación con guiones; por ejemplo, Toma tu Like coincide con toma-tu-like. Cada grupo recibe los fondos y colores de su propia entrada.
+- Si falta el concepto, no hay coincidencia o es ambigua, ese grupo no se genera y muestra un aviso con la celda y el motivo. Los demás continúan. El resumen también anticipa estos avisos.
+- Reiniciar Python con `iniciar-mvp.cmd`, recargar con Ctrl+F5 y cargar nuevamente la planilla. El frontend detecta servidores antiguos que todavía no devuelven conceptos.
+- Validación: siete pruebas Python de planilla, sintaxis de los tres JavaScript locales, prueba Edge con servicios simulados y `git diff --check`. Se verificaron slug normalizado, campañas distintas por UUID dentro del lote, concepto vacío, ausencia de coincidencia y continuidad. Falta validar con Sheets y campañas reales. No se modificó ni publicó el widget Modyo; no se hizo commit ni push.
+- Esta sección reemplaza el pendiente histórico de campaña por banner desde planilla para el entorno local.
+- Archivos de esta implementación: `planilla_banners.py`, `mvp-local.js`, `mvp-local-generator.js`, `mvp-batch.js`, `mvp.html`, `test_planilla_banners.py` y `test_banners_browser.py`. Se conservan los cambios previos de las cinco campañas y del servidor.
+- Punto para retomar: comprobar con la planilla real ambos ciclos, un lote con conceptos distintos, un concepto vacío y otro sin entrada correspondiente. Confirmar fondos y colores por grupo, avisos de omisión y descarga PNG/WebP. Volver a Individual y comprobar que el selector manual funciona. El usuario todavía no confirmó reinicio ni validación real posterior a esta implementación.
+- El cruce masivo usa las cinco entradas locales configuradas, no un listado dinámico de todas las entradas del espacio Modyo. Para incorporar conceptos de nuevas entradas se deberá ampliar esa configuración o implementar su listado dinámico.
+
+## Cinco campañas en el generador local (12 de noviembre de 2026)
+
+- El desplegable local contiene, en el orden solicitado, los UUID `40dd98db-cdc8-4d40-9950-a195bdbde8a5`, `ddd3ff5d-88dd-4ca7-86f6-959313238eea`, `0b5d9f6d-4a44-4a52-83c7-d8634799ca0d`, `f1bbd79b-c557-4f2f-80bd-8d101480f810` y `a1a77a6a-dc62-4fd9-983f-f1f8562d7a2f`.
+- Todos corresponden a `https://ww3.pcfactory.cl/api/content/spaces/banners-principales/types/campana/entries/<uuid>?locale=es`. `mvp-local.js` conserva la carga de sus nombres reales desde `meta.name`; el servidor permite exclusivamente estos cinco UUID en `/api/campaigns/<uuid>`.
+- Se actualizaron `mvp.html` y `servidor-mvp.py`. Reiniciar Python con `iniciar-mvp.cmd` y recargar con Ctrl+F5. Las referencias históricas a solo dos campañas quedan reemplazadas por esta lista.
+- Modyo conserva su selector dinámico mediante Liquid. No se modificó ni publicó el widget. Queda pendiente comprobar la carga real de las cinco campañas.
+- Validación realizada: pasaron las seis pruebas de `python -m unittest test_planilla_banners -q`, la compilación de `servidor-mvp.py` con `py_compile` y `git diff --check`. Estas comprobaciones no certifican acceso a los endpoints ni la carga de fondos y colores de las nuevas campañas.
+- Punto para retomar: cerrar el servidor Python anterior, ejecutar `iniciar-mvp.cmd`, recargar con Ctrl+F5 y comprobar que aparecen los cinco nombres reales. Seleccionar cada campaña y verificar fondos, colores y generación en Individual y Masivo. No se confirmó todavía este reinicio ni la prueba real por parte del usuario.
+- Los cambios de campañas y esta actualización de contexto no se han confirmado en un commit ni enviado mediante push durante esta sesión.
+
+## Commits incorporados y revisión del contexto (12 de noviembre de 2026)
+
+Se revisaron los diffs completos de los dos commits del 11 de noviembre, posteriores al commit inicial `b8ee5ef`. Esta sección prevalece sobre las notas históricas siguientes.
+
+### Nombres de banners desde planilla — `4b8c236`
+
+- El lector obtiene el nombre de cada grupo desde la misma columna de sus IDs: fila 29 para lunes a jueves (IDs en fila 9) y fila 63 para viernes a domingo (IDs en fila 43). Devuelve `name` y `nameCell`, conservando la correspondencia incluso con huecos y columnas posteriores a Z.
+- El resumen y las pestañas del modo Masivo muestran `celda: nombre`. Si el nombre está vacío, utilizan los IDs; si tampoco hay IDs, el valor original de la celda. El texto visible se limita a 45 caracteres, incluida la elipsis, y el atributo `title` conserva la etiqueta completa. Los errores se agregan después de la etiqueta en el resumen.
+- Se versionó la referencia de `mvp-batch.js` en `mvp.html` para actualizar la caché. El cambio afecta las etiquetas de interfaz; no incorpora nombres de planilla a los archivos descargados.
+- Archivos: `planilla_banners.py`, `mvp-batch.js`, `mvp.html` y `test_planilla_banners.py`.
+
+### Inicio de Python y conexiones locales — `31adcf8`
+
+- `iniciar-mvp.cmd` intenta, en orden, `py -3`, la instalación de Python313 bajo `%LocalAppData%` y `python`. Si ninguno está disponible, muestra instrucciones de instalación; mantiene la pausa final para poder leer errores.
+- El servidor centraliza las consultas externas en `open_upstream`. Ante un error de verificación de certificado SSL en Windows, reintenta con `curl.exe` del sistema para utilizar la confianza de Windows. Conserva la verificación de certificados y host, restringe las conexiones y redirecciones a HTTPS y establece límites de tiempo y tamaño. Se utiliza para Sheets, campañas, catálogo e imágenes.
+- El generador local muestra mensajes de conexión propios del entorno local y, ante una respuesta HTTP fallida del catálogo, presenta el detalle JSON enviado por el servidor. Ya no remite a configurar CORS o `api-url-new` de Modyo para ese error local.
+- Archivos: `iniciar-mvp.cmd`, `servidor-mvp.py` y `mvp-local-generator.js`. Ninguno de estos dos commits modifica el widget Modyo.
+
+### Validación y estado al retomar
+
+- El 12 de noviembre se ejecutó `python -m unittest test_planilla_banners -v`: pasaron las seis pruebas, incluida la nueva correspondencia de nombres por columna y ciclo. Esta revisión no ejecutó pruebas de navegador ni conexiones externas reales; el fallback SSL de Windows y el lanzador siguen sin validación específica en esta revisión.
+- Antes de editar este documento, el árbol estaba limpio y `main` y la referencia local `origin/main` apuntaban a `4b8c236`. El remoto configurado es `https://github.com/sebastianlorca/generador-banners.git`. No se hizo fetch ni consulta de red en esta revisión.
+- Para probar estos commits, reiniciar el servidor con `iniciar-mvp.cmd`, recargar con Ctrl+F5, actualizar la planilla y generar un lote nuevo. Comprobar nombres en ambos ciclos, nombres vacíos y largos, además del flujo real de generación y descarga ya pendiente.
+- Siguen vigentes los pendientes de títulos automáticos y tamaño del símbolo ®, validación real, rendimiento e integración con Modyo. No se publicó ningún despliegue durante esta revisión.
 
 ## Formatos por banner, descarga masiva y marcas (10 de noviembre de 2026)
 
@@ -59,19 +236,19 @@ Esta sección prevalece sobre las referencias históricas a comas como separador
 4. Revisar visualmente el hover del botón y la distribución de recorte; comprobar nombres largos, productos blancos y fotos de baja resolución. Medir consumo de memoria y rendimiento con un ciclo real completo.
 5. Tras validar local, adaptar el modo masivo, precios y controles de imagen a Modyo; resolver CORS y verificar carga de campañas, fotos y exportación en el CMS. Los JavaScript local y Modyo siguen separados y los cambios deben trasladarse expresamente. No hay despliegue autorizado en esta sesión.
 6. Ampliaciones aún sin implementar: campaña distinta por banner desde la planilla y otros campos. Los precios oferta/referencial ya están implementados localmente; el descuento se calcula con ellos, no se lee de la fila de porcentajes. Los ahorros se ignoran.
-7. Completar commit, remoto y subida a GitHub según el pendiente previo. No se volvió a intentar ni se verificó el estado remoto en esta sesión; conservar historial y evitar force push.
+7. Resuelto el pendiente histórico de inicialización y configuración de Git: existen el commit inicial y dos commits posteriores, con `main` y la referencia local `origin/main` en `4b8c236` al revisar el 12 de noviembre. No se consultó el remoto por red en esta revisión; conservar historial y evitar force push.
 
-Este documento conserva el contexto del proyecto y las decisiones de la conversación. La sección del 9 de noviembre y sus pendientes describen el estado más reciente y prevalecen sobre las notas históricas posteriores, que documentan versiones anteriores.
+Este documento conserva el contexto del proyecto y las decisiones de la conversación. Las secciones iniciales del 12, 10 y 9 de noviembre prevalecen, en ese orden, sobre las notas históricas posteriores, que documentan versiones anteriores.
 
 Este es el documento único de contexto e instrucciones del proyecto. Se consolidó aquí el contenido vigente de `README-modyo.md` y se eliminó ese archivo; las instrucciones obsoletas del README sobre JavaScript compartido y `data-local-proxy` quedan reemplazadas por la separación de ambientes documentada abajo.
 
 ## Repositorio Git
 
-Actualización del 10 de noviembre de 2026. El usuario autorizó subir el proyecto a GitHub. Se configuró `origin` como `https://github.com/sebastianlorca/generador-banners.git` y la consulta remota confirmó que estaba vacío antes de la primera subida. Se prepara el commit inicial en `main` con el código local, Modyo, pruebas y este contexto, respetando las exclusiones de `.gitignore`. Las notas siguientes describen el bloqueo histórico previo. Verificar la finalización de la subida consultando `origin/main` y el estado de Git.
+Estado revisado el 12 de noviembre de 2026: el commit inicial `b8ee5ef` del 10 de noviembre contiene el proyecto; los commits `31adcf8` y `4b8c236` del 11 de noviembre incorporan las mejoras descritas al inicio. `origin` está configurado como `https://github.com/sebastianlorca/generador-banners.git`; `main` y la referencia local `origin/main` coinciden en `4b8c236`. No se consultó GitHub por red durante esta revisión. Las notas de bloqueo siguientes son históricas y no representan el estado actual.
 
 Destino solicitado: `https://github.com/sebastianlorca/generador-banners.git`. Se inicializó Git local con rama `main` y se agregó `.gitignore` para excluir perfiles de navegador, cachés, archivos de entorno y credenciales habituales, planillas/datos locales, ejemplos gráficos y la aplicación independiente `taller-de-fichas.html`. Se conservarán el código local, los archivos Modyo, las pruebas y este contexto.
 
-La subida no se completó: el entorno no pudo conectar a GitHub y rechazó la escritura de `.git/index.lock` al intentar preparar el commit. No se creó un commit ni se configuró el remoto; será necesario completar esas acciones en una terminal con acceso de escritura a Git y conexión a GitHub. No se comprobó si el repositorio remoto contiene historial previo; no sobrescribirlo con force push.
+Bloqueo histórico anterior al commit inicial, ya superado según el historial y las referencias locales actuales: el entorno no pudo conectar a GitHub y rechazó la escritura de `.git/index.lock`. En aquel intento no se creó un commit ni se configuró el remoto. No sobrescribir historial con force push.
 
 ## Desarrollo local: generación por ciclos desde planilla (5 de noviembre de 2026)
 

@@ -1,10 +1,23 @@
 #pcf-banner-mvp [hidden]{display:none!important}
 .batch-settings{display:grid;gap:14px;margin:18px 0}.batch-settings input,.batch-settings select{width:100%;box-sizing:border-box}.batch-settings button{justify-self:start}
-.batch-summary{max-height:230px;overflow:auto;padding:12px;background:#f3f5fa;border-radius:10px}.batch-summary p{margin:6px 0}.batch-error{color:#ad2020}
-.batch-group{display:grid;grid-template-columns:minmax(180px,auto) minmax(0,1fr);align-items:center;gap:8px 16px;padding:10px 0}
-.batch-group+.batch-group{border-top:1px solid #dce2ee}
-.batch-group-formats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,95px),1fr));gap:8px}
-#pcf-banner-mvp .batch-group-formats label{display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer}
+.batch-summary{max-height:580px;overflow:auto;padding:14px;background:#f3f5fa;border:1px solid #e2e7ef;border-radius:14px;display:grid;gap:14px;scrollbar-gutter:stable}.batch-summary p{margin:0}.batch-error{color:#ad2020}
+.batch-group{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:20px;text-align:left;background:#fff;border:1px solid #dce7e1;border-left:4px solid #008251;border-radius:12px;box-shadow:0 2px 6px #193e3206}
+.batch-group[data-state=review]{border-color:#e8d5ac;border-left-color:#b77a10}
+.batch-group>p{max-width:100%;overflow-wrap:anywhere}
+.batch-card-header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#53665e;font-weight:500}
+.batch-card-badge{padding:5px 10px;border-radius:20px;background:#e7f5ec;color:#05613a;white-space:nowrap}
+.batch-group[data-state=review] .batch-card-badge{background:#fff1d5;color:#805409}
+#pcf-banner-mvp .batch-card-title{font-size:16px;line-height:1.5;font-weight:700;margin:3px 0 5px}
+.batch-card-cell{font-size:12px;color:#64736c;overflow-wrap:anywhere}
+.batch-card-warning{padding:10px 12px;background:#fff7e7;border-radius:8px;color:#805409;font-size:13px;line-height:1.5}
+.batch-card-products{font-size:13px;color:#53665e}
+#pcf-banner-mvp .batch-card-formats-title{padding-top:12px;margin-top:4px;border-top:1px solid #edf0ed;font-size:12px;font-weight:700;color:#53665e}
+#pcf-banner-mvp #sheetStatus{font-size:14px;font-weight:500;color:#193e32}
+.batch-group-formats{display:flex;flex-wrap:wrap;gap:8px}
+#pcf-banner-mvp .batch-group-formats label{display:flex;align-items:center;gap:7px;min-height:38px;box-sizing:border-box;padding:8px 11px;border:1px solid #dce2e0;border-radius:8px;background:#fafcfb;font-size:12px;cursor:pointer;transition:background .15s,border-color .15s}
+#pcf-banner-mvp .batch-group-formats label:has(input:checked){background:#eaf6ef;border-color:#8bc5a5;color:#05613a}
+#pcf-banner-mvp .batch-group-formats label:hover{border-color:#008251}
+#pcf-banner-mvp .batch-group-formats label:focus-within{outline:2px solid #008251;outline-offset:2px}
 #pcf-banner-mvp .batch-group-formats input{width:16px;height:16px;min-height:0;margin:0;padding:0;flex:none;accent-color:var(--studio-green)}
 @media(max-width:650px){.batch-group{grid-template-columns:1fr}}
 .batch-tabs{display:flex;gap:8px;overflow:auto;padding:12px 0}

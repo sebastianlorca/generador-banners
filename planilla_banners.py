@@ -40,7 +40,7 @@ def parse_workbook(content):
             rows = {'9': [], '43': []}
             prices = {}
             for row in ET.fromstring(archive.read(path)).findall('s:sheetData/s:row', NS):
-                if row.attrib.get('r') not in ('9', '17', '18', '29', '43', '51', '52', '63'):
+                if row.attrib.get('r') not in ('3', '9', '17', '18', '29', '37', '43', '51', '52', '63'):
                     continue
                 for cell in row.findall('s:c', NS):
                     ref = cell.attrib.get('r', '')
@@ -74,23 +74,68 @@ def parse_workbook(content):
                     ids = [part.split(',')[0].strip() for part in re.split(r'\s*[-/]\s*', value)]
                     valid = 1 <= len(ids) <= 3 and all(re.fullmatch(r'[0-9]+', product) for product in ids)
                     rows[row.attrib['r']].append({'cell': ref, 'value': value, 'ids': ids if valid else [], 'error': '' if valid else 'Se requieren de 1 a 3 IDs numéricos separados por guion o slash; de las variantes con coma se usa solo la primera.', '_column': column})
-            for cycle, groups in rows.items():
-                groups.sort(key=lambda group: group['_column'])
-                for group in groups:
-                    del group['_column']
-                    column_name = re.match(r'[A-Z]+', group['cell'])[0]
-                    group['nameCell'] = column_name + ('29' if cycle == '9' else '63')
-                    group['name'] = prices.get(group['nameCell'], '')
-                    reference_row, offer_row = ('17', '18') if cycle == '9' else ('51', '52')
-                    group['priceCells'] = {'reference': column_name + reference_row, 'offer': column_name + offer_row}
-                    group['sheetPrices'] = None
-                    group['priceError'] = ''
-                    if group['ids']:
-                        try:
-                            reference = parse_prices(prices.get(group['priceCells']['reference'], ''), len(group['ids']))
-                            offer = parse_prices(prices.get(group['priceCells']['offer'], ''), len(group['ids']))
-                            group['sheetPrices'] = [{'efectivo': p, 'referencia': r} for p, r in zip(offer, reference)]
-                        except ValueError as error:
-                            group['priceError'] = '/'.join(group['priceCells'].values()) + ': ' + str(error)
+            finish_groups(rows, prices)
             result.append({'name': name, 'cycles': rows})
         return sorted(result, key=lambda sheet: sheet['name'])
+
+
+def finish_groups(rows, prices):
+    for cycle, groups in rows.items():
+        groups.sort(key=lambda group: group['_column'])
+        for group in groups:
+            del group['_column']
+            column_name = re.match(r'[A-Z]+', group['cell'])[0]
+            group['campaignCell'] = column_name + ('3' if cycle == '9' else '37')
+            group['campaignConcept'] = prices.get(group['campaignCell'], '')
+            group['nameCell'] = column_name + ('29' if cycle == '9' else '63')
+            group['name'] = prices.get(group['nameCell'], '')
+            reference_row, offer_row = ('17', '18') if cycle == '9' else ('51', '52')
+            group['priceCells'] = {'reference': column_name + reference_row, 'offer': column_name + offer_row}
+            group['sheetPrices'] = None
+            group['priceError'] = ''
+            if group['ids']:
+                try:
+                    reference = parse_prices(prices.get(group['priceCells']['reference'], ''), len(group['ids']))
+                    offer = parse_prices(prices.get(group['priceCells']['offer'], ''), len(group['ids']))
+                    group['sheetPrices'] = [{'efectivo': p, 'referencia': r} for p, r in zip(offer, reference)]
+                except ValueError as error:
+                    group['priceError'] = '/'.join(group['priceCells'].values()) + ': ' + str(error)
+
+
+def parse_week_rows(name, values):
+    """Parse isolated CSV rows; one row per query avoids mixed-column type loss."""
+    import csv
+    from io import StringIO
+    rows = {'9': [], '43': []}
+    prices = {}
+    for number, content in values.items():
+        text = content.decode('utf-8-sig')
+        if text.lstrip().startswith(('<', '/*', '{')):
+            raise ValueError('Google no entregó los datos de la semana. Comprueba que exista y permita lectura sin iniciar sesión.')
+        records = list(csv.reader(StringIO(text)))
+        # Google omits empty column labels in some CSV responses.
+        if len(records) == 2 and not any(records[0]):
+            records = records[1:]
+        if len(records) > 1:
+            raise ValueError('Google devolvió más filas de las solicitadas.')
+        cells = records[0] if records else []
+        for index, value in enumerate(cells, 1):
+            value = value.strip()
+            if index < 5 or not value:
+                continue
+            column, n = '', index
+            while n:
+                n, remainder = divmod(n - 1, 26)
+                column = chr(65 + remainder) + column
+            ref = column + number
+            if number not in rows:
+                prices[ref] = value
+                continue
+            # Single numeric IDs may be returned as an integral decimal.
+            if re.fullmatch(r'[0-9]+\.0+', value):
+                value = value.split('.')[0]
+            ids = [part.split(',')[0].strip() for part in re.split(r'\s*[-/]\s*', value)]
+            valid = 1 <= len(ids) <= 3 and all(re.fullmatch(r'[0-9]+', product) for product in ids)
+            rows[number].append({'cell': ref, 'value': value, 'ids': ids if valid else [], 'error': '' if valid else 'Se requieren de 1 a 3 IDs numéricos separados por guion o slash; de las variantes con coma se usa solo la primera.', '_column': index})
+    finish_groups(rows, prices)
+    return {'name': name, 'cycles': rows}

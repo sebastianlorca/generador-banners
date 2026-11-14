@@ -14,12 +14,19 @@ from contextlib import contextmanager
 from http.client import parse_headers
 from io import BytesIO
 from types import SimpleNamespace
-from planilla_banners import parse_workbook
+from planilla_banners import parse_week_rows
+from concurrent.futures import ThreadPoolExecutor
 
 ROOT = Path(__file__).resolve().parent
 CATALOG = 'https://api.pcfactory.cl/pcfactory-services-catalogo/v1/catalogo/productos/banners'
 
-CAMPAIGNS = {'f1bbd79b-c557-4f2f-80bd-8d101480f810', 'a1a77a6a-dc62-4fd9-983f-f1f8562d7a2f'}
+CAMPAIGNS = {
+    '40dd98db-cdc8-4d40-9950-a195bdbde8a5',
+    'ddd3ff5d-88dd-4ca7-86f6-959313238eea',
+    '0b5d9f6d-4a44-4a52-83c7-d8634799ca0d',
+    'f1bbd79b-c557-4f2f-80bd-8d101480f810',
+    'a1a77a6a-dc62-4fd9-983f-f1f8562d7a2f',
+}
 
 @contextmanager
 def open_upstream(target, timeout=20):
@@ -55,19 +62,25 @@ def open_upstream(target, timeout=20):
 class Handler(SimpleHTTPRequestHandler):
     def sheets(self, params):
         spreadsheet = params.get('id', [''])[0]
+        week = params.get('week', [''])[0]
         code = 200
         try:
             if not re.fullmatch(r'[A-Za-z0-9_-]{20,100}', spreadsheet):
                 raise ValueError('ID de Google Sheets no válido.')
-            target = 'https://docs.google.com/spreadsheets/d/' + spreadsheet + '/export?format=xlsx'
-            with open_upstream(target, timeout=30) as upstream:
-                content = upstream.read(40 * 1024 * 1024 + 1)
-            if len(content) > 40 * 1024 * 1024:
-                raise ValueError('La planilla supera 40 MiB.')
-            sheets = parse_workbook(content)
-            if not sheets:
-                raise ValueError('No hay hojas con nombres W01 a W52.')
-            payload = {'sheets': sheets}
+            if not re.fullmatch(r'W(?:0[1-9]|[1-4][0-9]|5[0-2])', week):
+                raise ValueError('Selecciona una hoja entre W01 y W52. Si el servidor es antiguo, reinícialo y recarga con Ctrl+F5.')
+            def read_row(number):
+                query = urlencode({'sheet': week, 'headers': 0, 'tqx': 'out:csv', 'range': number + ':' + number})
+                target = 'https://docs.google.com/spreadsheets/d/' + spreadsheet + '/gviz/tq?' + query
+                with open_upstream(target, timeout=120) as upstream:
+                    content = upstream.read(4 * 1024 * 1024 + 1)
+                if len(content) > 4 * 1024 * 1024:
+                    raise ValueError('Una fila de la semana supera 4 MiB.')
+                return number, content
+            # Isolate rows to preserve numeric IDs in columns containing mostly text.
+            with ThreadPoolExecutor(max_workers=10) as pool:
+                values = dict(pool.map(read_row, ('3', '9', '17', '18', '29', '37', '43', '51', '52', '63')))
+            payload = {'sheets': [parse_week_rows(week, values)]}
         except HTTPError as error:
             code = 502
             payload = {'error': 'Google rechazó la lectura (HTTP ' + str(error.code) + '). Comprueba que la planilla permita lectura sin iniciar sesión y descarga. Una planilla privada necesita una conexión autenticada aún no configurada.'}

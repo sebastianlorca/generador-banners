@@ -12,6 +12,11 @@ function registeredBrand(product){
 const name=(product.marca?.nombre||'').trim();
 return name?name.replace(/[\s®]+$/u,'')+'®':'';
 }
+function titleWithoutBrand(product){
+const brand=(product.marca?.nombre||'').trim().replace(/[\s®]+$/u,''),escapedBrand=brand.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const title=brand?String(product.bannerTitle||'').replace(new RegExp('\\s*'+escapedBrand+'\\s*®?\\s*$','iu'),'').trim():product.bannerTitle;
+return title||product.familia?.nombre||'Producto';
+}
 const editorProductIds=[null,null,null];
 const backgroundFields={1:'background1',2:'background',3:'background3'};
 const formatFields={desk:'formatDesk',mobile:'formatMobile',story:'formatStory',fhd:'formatFhd',mini:'formatMini',horizontal:'formatHorizontal',horizontal3840:'formatHorizontal3840'};
@@ -58,7 +63,7 @@ campaignValues=parseCampaign(JSON.stringify(entry));
 textColors=readTextColors();loadedCampaignId=option.value;
 status('Campana cargada desde Modyo. Completa los IDs y pulsa Generar Banner.');
 }catch(error){if(request===campaignRequest){campaignValues={};status(error.name==='AbortError'?'Modyo tardo demasiado en entregar la campana. Vuelve a seleccionarla.':error.message,true)}}
-finally{clearTimeout(timer);if(request===campaignRequest){campaignLoading=false;$('generate').disabled=!loadedCampaignId}}
+finally{clearTimeout(timer);if(request===campaignRequest){campaignLoading=false;$('generate').disabled=window.bannerBatch?.isMassive()?false:!loadedCampaignId}}
 }
 if(campaignSelector)campaignSelector.addEventListener('change',applyCampaign);
 let textColors={};
@@ -67,7 +72,33 @@ function validTextColor(value){if(!CSS.supports('color',value))return false;colo
 function readTextColors(){const colors={};let invalid=null;const labels={title:'titulo',name:'nombre',price:'precio',discount:'porcentaje de descuento'};for(const [key,id] of Object.entries(textColorFields)){const value=campaignValues[id]||'',valid=!value||validTextColor(value);if(!valid&&!invalid)invalid='Color de '+labels[key]+' no valido. Usa un color CSS, por ejemplo #ff0000, rgba(255,0,0,0.8) o red.';colors[key]=value}if(invalid)throw new Error(invalid);return colors}
 function textColor(key,fallback){return textColors[key]||fallback}
 function selectedSlots(){return slotIds.map((id,index)=>({id:$(id).value.trim(),index})).filter(slot=>slot.id)}
-function setDownloads(enabled){$('download').disabled=!enabled||!lastScene?.formats.desk;if($('downloadAll'))$('downloadAll').disabled=!enabled;for(const button of root.querySelectorAll('#mobilePreviews button, #storyPreviews button, #fhdPreviews button, #miniPreviews button, #horizontalPreviews button, #horizontal3840Previews button'))button.disabled=!enabled}
+const previewLinks=new Map();let previewTimer,previewRevision=0;
+function clearPreviewLinks(){
+clearTimeout(previewTimer);previewRevision++;
+for(const {link,url} of previewLinks.values()){link.removeAttribute('href');if(url)URL.revokeObjectURL(url)}
+previewLinks.clear();
+}
+function updatePreviewLinks(){
+clearTimeout(previewTimer);const revision=++previewRevision;
+for(const {link} of previewLinks.values())link.removeAttribute('href');
+const outputs=sceneCanvases(lastScene);
+for(const output of outputs){
+if(previewLinks.has(output))continue;
+let link=output.closest('a.banner-preview-link');
+if(!link){link=document.createElement('a');link.className='banner-preview-link';link.style.display='block';link.target='_blank';link.rel='noopener';link.title='Abrir imagen en otra pestaña · También puedes usar clic derecho';link.setAttribute('aria-label',output.getAttribute('aria-label')||'Abrir banner en otra pestaña');output.replaceWith(link);link.append(output)}
+previewLinks.set(output,{link,url:null});
+}
+previewTimer=setTimeout(()=>{
+for(const output of outputs)exportBlob(output).then(blob=>{
+if(revision!==previewRevision||!output.isConnected)return;
+const entry=previewLinks.get(output);if(!entry)return;
+const url=URL.createObjectURL(blob);if(entry.url)URL.revokeObjectURL(entry.url);
+entry.url=url;entry.link.href=url;
+}).catch(()=>{const entry=previewLinks.get(output);if(revision===previewRevision&&entry){entry.link.removeAttribute('href');if(entry.url)URL.revokeObjectURL(entry.url);entry.url=null}});
+},180);
+}
+window.addEventListener('pagehide',clearPreviewLinks);
+function setDownloads(enabled){$('download').disabled=!enabled||!lastScene?.formats.desk;if($('downloadAll'))$('downloadAll').disabled=!enabled;for(const button of root.querySelectorAll('#mobilePreviews button, #storyPreviews button, #fhdPreviews button, #miniPreviews button, #horizontalPreviews button, #horizontal3840Previews button'))button.disabled=!enabled;if(enabled&&lastScene)updatePreviewLinks();else clearPreviewLinks()}
 function hideProductControls(){$('sharedEditors').hidden=true;$('desktopPreviewContent').hidden=true;for(let i=0;i<3;i++){const mobile=$('mobileControls'+i);if(mobile){mobile.hidden=true;$('controlParking').append(mobile);}const story=$('storyControls'+i);if(story){story.hidden=true;$('controlParking').append(story)}const fhd=$('fhdControls'+i);if(fhd){fhd.hidden=true;$('controlParking').append(fhd)}const mini=$('miniControls'+i);if(mini){mini.hidden=true;$('controlParking').append(mini)}const horizontal=$('horizontalControls'+i);if(horizontal){horizontal.hidden=true;$('controlParking').append(horizontal)}const horizontal3840=$('horizontal3840Controls'+i);if(horizontal3840){horizontal3840.hidden=true;$('controlParking').append(horizontal3840)}$('controls'+i).hidden=true}$('imageControls').hidden=true}
 function showProductControls(slots,formats){
 $('desktopPreviewContent').hidden=!formats.desk;$('sharedEditors').hidden=formats.desk;
@@ -127,25 +158,47 @@ return data;
 function removeWhiteBackground(image,tolerance,removeInterior){const layer=document.createElement('canvas');layer.width=image.width;layer.height=image.height;const context=layer.getContext('2d',{willReadFrequently:true});context.drawImage(image,0,0);let pixels;try{pixels=context.getImageData(0,0,layer.width,layer.height)}catch{throw new Error('No se pueden leer los pixeles de la foto por CORS. El servidor de fotos debe permitir CORS para este sitio Modyo.')}clearEdgeWhite(pixels.data,layer.width,layer.height,tolerance,removeInterior);context.putImageData(pixels,0,0);return layer}
 
 const money=value=>'$'+new Intl.NumberFormat('es-CL',{maximumFractionDigits:0}).format(value);
-function fitText(text,x,y,maxWidth,size,min,color,weight='700'){ctx.fillStyle=color;while(size>min){ctx.font=weight+' '+size+'px Ubuntu';if(ctx.measureText(text).width<=maxWidth)break;size--}ctx.font=weight+' '+size+'px Ubuntu';while(ctx.measureText(text).width>maxWidth&&text.length>1)text=text.slice(0,-2)+'…';ctx.fillText(text,x,y)}
+const pricePlateSvgs={
+horizontal:'<svg xmlns="http://www.w3.org/2000/svg" width="400" height="350" viewBox="0 0 400 350"><path fill="#42474a" d="M257.16,226.24H18.76c-10.36,0-18.76-8.4-18.76-18.76v-54.79c0-10.36,8.4-18.75,18.76-18.75h266.59L257.16,226.24Z"/><path fill="#8ee8b2" d="M400,226.24v-73.26c0-10.52-8.53-19.04-19.05-19.04h-98.43l-43.74,12.87-.24.07c-2.31.75-4.23,2.41-5.29,4.56-1.05,2.13-1.18,4.54-.38,6.77l24.41,68.03H400Z"/></svg>',
+vertical:'<svg xmlns="http://www.w3.org/2000/svg" width="400" height="350" viewBox="0 0 400 350"><g id="PRECIO"><rect fill="#45494b" x="21.44" y="180.04" width="357.12" height="88.8" rx="14.23" ry="14.23"/></g><g id="DCTO"><path fill="#a9e4b0" d="M350.24,311.75l-88.47,5.99c-2.9.2-5.58-1.54-6.59-4.27l-16.72-45.41c-1.57-4.27,1.59-8.81,6.14-8.81h105.2c3.61,0,6.55,2.93,6.55,6.55v39.42C356.35,308.66,353.68,311.52,350.24,311.75Z"/></g></svg>'
+};
+let pricePlates,pricePlatesPromise;
+function loadPricePlates(){
+if(!pricePlatesPromise)pricePlatesPromise=Promise.all([pricePlateSvgs.horizontal,pricePlateSvgs.vertical,pricePlateSvgs.vertical.replace('<g id="DCTO">','<g id="DCTO" display="none">')].map(svg=>loadImage('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg),'portaprecio'))).then(images=>{pricePlates=images}).catch(error=>{pricePlatesPromise=null;throw error});
+return pricePlatesPromise;
+}
+function drawPricePlate(context,type,x,y,width,height,discounted){
+// Crop only the SVG's transparent margins; keep price and discount geometry together.
+if(type==='horizontal')context.drawImage(pricePlates[0],0,133.94,400,92.3,x,y,width,height);
+else context.drawImage(pricePlates[discounted?1:2],21.44,180.04,357.12,138,x,y,width,height*138/88.8);
+}
+function brandText(context,text,x,y){
+const font=context.font,size=Number(font.match(/([\d.]+)px/)?.[1]||16);let width=0;
+for(const part of String(text).split(/(®)/)){
+context.font=part==='®'?font.replace(/([\d.]+)px/,size*.5+'px'):font;
+if(x!==undefined)context.fillText(part,x+width,y-(part==='®'?size*.35:0));
+width+=context.measureText(part).width;
+}
+context.font=font;return width;
+}
+function fitText(text,x,y,maxWidth,size,min,color,weight='700'){ctx.fillStyle=color;while(size>min){ctx.font=weight+' '+size+'px Ubuntu';if(brandText(ctx,text)<=maxWidth)break;size--}ctx.font=weight+' '+size+'px Ubuntu';while(brandText(ctx,text)>maxWidth&&text.length>1)text=text.slice(0,-2)+'…';brandText(ctx,text,x,y)}
 function drawProductName(name,x,priceY){
 const width=300;let lines=[];let size=16;
 for(;size>=10;size--){ctx.font='400 '+size+'px Ubuntu';lines=[];let line='';for(const word of String(name||'').split(/\s+/)){const candidate=line?line+' '+word:word;if(line&&ctx.measureText(candidate).width>width){lines.push(line);line=word}else{line=candidate}}if(line)lines.push(line);if(lines.length<=2)break}
 ctx.fillStyle=textColor('name','#414749');ctx.font='400 '+Math.max(10,size)+'px Ubuntu';lines.forEach((line,index)=>ctx.fillText(line,x+20,priceY-26+index*17));
 }
 function product(p,img,x,priceY,zoom=100,offsetX=0,offsetY=0){const imageBottom=priceY-55;const imageTop=105;const imageHeight=imageBottom-imageTop;const baseScale=Math.min(285/img.width,imageHeight/img.height);const scale=baseScale*zoom/100;const originalCenter=imageTop+imageHeight/2;const imageY=Math.min(originalCenter-img.height*scale/2,imageBottom-img.height*scale);ctx.drawImage(img,x+155-img.width*scale/2+offsetX,imageY+offsetY,img.width*scale,img.height*scale);const title=p.bannerTitle??((p.familia?.nombre||'Producto')+' '+registeredBrand(p));fitText(title,x+20,priceY-47,300,22,16,textColor('title','#414749'));drawProductName(p.nombre,x,priceY);
-// Paint the complete price block so backgrounds with slightly different placeholders work.
-ctx.fillStyle='#414749';ctx.beginPath();ctx.roundRect(x,priceY,308,71,15);ctx.fill();ctx.fillStyle='#8ce5b0';ctx.beginPath();ctx.moveTo(x+190,priceY);ctx.lineTo(x+293,priceY);ctx.quadraticCurveTo(x+308,priceY,x+308,priceY+15);ctx.lineTo(x+308,priceY+71);ctx.lineTo(x+198,priceY+71);ctx.lineTo(x+179,priceY+17);ctx.quadraticCurveTo(x+176,priceY+8,x+190,priceY);ctx.fill();fitText(money(p.precio.efectivo),x+9,priceY+46,175,36,24,textColor('price','#fff'));if(Number.isFinite(p.precio.referencia))fitText('Referencial: '+money(p.precio.referencia),x+13,priceY+65,175,12,10,textColor('price','#fff'),'400');const discount=p.precio.descuento;if(Number.isFinite(discount)&&discount>0)fitText('-'+Math.round(discount)+'%',x+191,priceY+53,111,48,28,textColor('discount','#104d32'));}
+drawPricePlate(ctx,'horizontal',x,priceY,308,71,p.precio.descuento>0);fitText(money(p.precio.efectivo),x+9,priceY+46,175,36,24,textColor('price','#fff'));if(Number.isFinite(p.precio.referencia))fitText('Referencial: '+money(p.precio.referencia),x+13,priceY+65,175,12,10,textColor('price','#fff'),'400');const discount=p.precio.descuento;if(Number.isFinite(discount)&&discount>0)fitText('-'+Math.round(discount)+'%',x+191,priceY+53,111,48,28,textColor('discount','#104d32'));}
 function singleProduct(p,img,zoom,offsetX,offsetY){
 const scale=Math.min(390/img.width,270/img.height)*zoom/100;
 ctx.drawImage(img,1300-img.width*scale/2+offsetX,250-img.height*scale/2+offsetY,img.width*scale,img.height*scale);
-fitText(p.bannerTitle??((p.familia?.nombre||'Producto')+' '+registeredBrand(p)),790,190,305,26,16,textColor('title','#414749'));
-// Reuse the two-line name layout above the single-product price block.
-drawProductName(p.nombre,770,261);
-ctx.fillStyle='#414749';ctx.beginPath();ctx.roundRect(790,261,275,68,12);ctx.fill();
+fitText(registeredBrand(p),790,180,305,32,20,textColor('title','#414749'));
+fitText(titleWithoutBrand(p),790,221,305,28,18,textColor('title','#414749'));
+fitText(p.nombre,790,249,305,20,12,textColor('name','#414749'),'400');
+drawPricePlate(ctx,'vertical',790,261,275,68,p.precio.descuento>0);
 fitText(money(p.precio.efectivo),800,315,255,50,28,textColor('price','#fff'));
 if(Number.isFinite(p.precio.referencia))fitText('Referencial: '+money(p.precio.referencia),790,355,164,15,10,textColor('price','#414749'),'400');
-ctx.fillStyle='#8ce5b0';ctx.beginPath();ctx.moveTo(962,322);ctx.lineTo(1043,322);ctx.quadraticCurveTo(1048,322,1048,327);ctx.lineTo(1048,357);ctx.quadraticCurveTo(1048,362,1043,362);ctx.lineTo(977,367);ctx.quadraticCurveTo(971,368,970,362);ctx.lineTo(957,329);ctx.quadraticCurveTo(955,322,962,322);ctx.fill();
+
 if(Number.isFinite(p.precio.descuento)&&p.precio.descuento>0)fitText('-'+Math.round(p.precio.descuento)+'%',974,353,70,32,22,textColor('discount','#104d32'));
 }
 function calculatedDiscount(price,reference){return reference>0&&reference>price?Math.max(0,Math.min(100,Math.round((reference-price)/reference*100))):0}
@@ -185,19 +238,19 @@ renderScene(scene);await Promise.all(sceneCanvases(scene).map(exportBlob));
 if(lastScene!==scene)return;
 setDownloads(true);status(result.fallback?'La imagen elegida no existe o no se pudo cargar. Se muestra la imagen '+result.selection+' del dropdown.':'Imagen actualizada en escritorio, mobile, stories y Pantalla FHD.');
 }catch(error){if(lastScene===scene){selector.value=String(scene.imageSelections[position]??previous);setDownloads(false);status(error.message||'No se pudo cargar la imagen principal.',true)}}
-finally{busy=false;if(campaignSelector)campaignSelector.disabled=false;$('generate').disabled=false;for(let i=0;i<3;i++){const disabled=editorProductIds[i]!==$(slotIds[i]).value.trim()||editorProductIds[i]===null;$('image'+controlNames[i]).disabled=disabled;$('customImage'+controlNames[i]).disabled=disabled}syncCutoutControls()}
+finally{busy=false;if(campaignSelector)campaignSelector.disabled=!!window.bannerBatch?.isMassive();$('generate').disabled=false;for(let i=0;i<3;i++){const disabled=editorProductIds[i]!==$(slotIds[i]).value.trim()||editorProductIds[i]===null;$('image'+controlNames[i]).disabled=disabled;$('customImage'+controlNames[i]).disabled=disabled}syncCutoutControls()}
 }
 function refreshEdits(){if(!lastScene||busy)return;try{renderScene(lastScene);setDownloads(true);status('Formatos seleccionados actualizados. Las descargas incluyen los cambios.')}catch(error){setDownloads(false);status(error.message,true)}}
 function mobileText(context,text,x,y,width,size,min,color,weight='700'){
 text=String(text||'');context.fillStyle=color;
-while(size>min){context.font=weight+' '+size+'px Ubuntu';if(context.measureText(text).width<=width)break;size--}
+while(size>min){context.font=weight+' '+size+'px Ubuntu';if(brandText(context,text)<=width)break;size--}
 context.font=weight+' '+size+'px Ubuntu';
-while(context.measureText(text).width>width&&text.length>1)text=text.slice(0,-2)+'\u2026';
-context.fillText(text,x,y);
+while(brandText(context,text)>width&&text.length>1)text=text.slice(0,-2)+'\u2026';
+brandText(context,text,x,y);
 }
 function mobileLines(context,text,x,y,width,size,maxLines,weight='700'){
 context.font=weight+' '+size+'px Ubuntu';const words=String(text||'').trim().split(/\s+/);const lines=[];let line='';
-for(const word of words){if(line&&context.measureText(line+' '+word).width>width){lines.push(line);line=word}else line=line?line+' '+word:word}if(line)lines.push(line);
+for(const word of words){if(line&&brandText(context,line+' '+word)>width){lines.push(line);line=word}else line=line?line+' '+word:word}if(line)lines.push(line);
 for(let i=0;i<Math.min(lines.length,maxLines);i++){const value=i===maxLines-1?lines.slice(i).join(' '):lines[i];mobileText(context,value,x,y+i*(size+3),width,size,size,textColor('title','#414749'),weight)}
 }
 function renderMobile(scene,edited){
@@ -207,20 +260,19 @@ const existing=$(cardId),card=existing||document.createElement('article');card.i
 const label=existing?card.querySelector('p'):document.createElement('p');label.textContent='Producto '+(i+1)+' ? '+p.id+' ? '+p.nombre;
 const output=existing?card.querySelector('canvas'):document.createElement('canvas');output.width=556;output.height=416;output.setAttribute('aria-label','Banner mobile del producto '+p.id);
 const c=output.getContext('2d');c.drawImage(scene.mobileBg,0,0,556,416);
-// The template includes a green badge: cover it before drawing the price block.
-if(!(p.precio.descuento>0)){const sx=scene.mobileBg.width/556,sy=scene.mobileBg.height/416;c.drawImage(scene.mobileBg,263*sx,302*sy,sx,40*sy,171,302,74,40)}
 const control=controlNames[scene.slots[i].index],img=scene.renderedImages[i];
 const zoom=Number($('mobileZoom'+control).value)/100,x=Number($('mobileX'+control).value),y=Number($('mobileY'+control).value);
 const scale=Math.min(220/img.width,155/img.height)*zoom;
 c.save();c.beginPath();c.rect(275,160,235,190);c.clip();c.drawImage(img,398-img.width*scale/2+x,260-img.height*scale/2+y,img.width*scale,img.height*scale);c.restore();
-// Keep text inside the left column and away from the price block.
-mobileLines(c,p.bannerTitle,54,200,210,23,2);
+// Mobile separates brand and title, keeping automatic titles free of duplicate brands.
+mobileText(c,registeredBrand(p),54,201,210,23,16,textColor('title','#414749'));
+mobileText(c,titleWithoutBrand(p),54,230,210,22,14,textColor('title','#414749'));
 mobileText(c,p.nombre,54,250,210,16,12,textColor('name','#414749'),'400');
-c.fillStyle='#414749';c.beginPath();c.roundRect(52,258,210,52,8);c.fill();
+drawPricePlate(c,'vertical',52,258,210,52,p.precio.descuento>0);
 mobileText(c,money(p.precio.efectivo),59,298,196,40,22,textColor('price','#fff'));
 // Only draw the discount badge for a positive discount.
 if(p.precio.descuento>0){
-c.fillStyle='#8ce5b0';c.beginPath();c.moveTo(179,305);c.lineTo(235,305);c.quadraticCurveTo(240,305,240,310);c.lineTo(240,331);c.lineTo(188,338);c.lineTo(174,311);c.quadraticCurveTo(173,305,179,305);c.fill();
+
 mobileText(c,'-'+p.precio.descuento+'%',185,329,51,24,17,textColor('discount','#104d32'));
 }
 if(p.precio.referencia>p.precio.efectivo){c.font='700 15px Ubuntu';c.fillStyle=textColor('price','#414749');const value=money(p.precio.referencia);const width=c.measureText(value).width;c.fillText(value,84,326);c.strokeStyle=textColor('price','#414749');c.lineWidth=1;c.beginPath();c.moveTo(83,321);c.lineTo(85+width,321);c.stroke()}
@@ -244,11 +296,9 @@ const scale=Math.min(670/img.width,520/img.height)*zoom;
 c.save();c.beginPath();c.rect(145,690,790,625);c.clip();c.drawImage(img,540-img.width*scale/2+x,1020-img.height*scale/2+y,img.width*scale,img.height*scale);c.restore();
 mobileText(c,p.bannerTitle,218,1370,680,52,30,textColor('title','#414749'));
 mobileText(c,p.nombre,218,1420,680,38,22,textColor('name','#414749'),'400');
-// Repaint the entire price area, including the template's discount placeholder.
-c.fillStyle='#414749';c.beginPath();c.roundRect(168,1446,745,172,36);c.fill();
 const discounted=p.precio.descuento>0;
-if(discounted){c.save();c.beginPath();c.roundRect(168,1446,745,172,36);c.clip();c.fillStyle='#8ce5b0';c.beginPath();c.moveTo(698,1446);c.lineTo(913,1446);c.lineTo(913,1618);c.lineTo(647,1618);c.lineTo(601,1491);c.quadraticCurveTo(594,1475,613,1470);c.closePath();c.fill();c.restore()}
-mobileText(c,money(p.precio.efectivo),186,1560,discounted?400:690,90,42,textColor('price','#fff'));
+drawPricePlate(c,'horizontal',168,1446,745,172,discounted);
+mobileText(c,money(p.precio.efectivo),186,1560,400,90,42,textColor('price','#fff'));
 if(p.precio.referencia>p.precio.efectivo)mobileText(c,'Referencial: '+money(p.precio.referencia),211,1600,390,30,20,textColor('price','#fff'),'400');
 if(discounted)mobileText(c,'-'+p.precio.descuento+'%',630,1570,260,112,60,textColor('discount','#104d32'));
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'banner-storie-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('storyControls'+index),button)}
@@ -264,21 +314,19 @@ const existing=$(cardId),card=existing||document.createElement('article');card.i
 const label=existing?card.querySelector('p'):document.createElement('p');label.textContent='Producto '+(i+1)+' \u00b7 '+p.id+' \u00b7 '+p.nombre;
 const output=existing?card.querySelector('canvas'):document.createElement('canvas');output.width=1920;output.height=1080;output.setAttribute('aria-label','Pantalla FHD del producto '+p.id);
 const c=output.getContext('2d');c.drawImage(scene.fhdBg,0,0,1920,1080);
-// Clear the template placeholders before drawing prices and optional discount.
-c.fillStyle='#fff';c.fillRect(160,710,640,270);
 const img=scene.renderedImages[i],zoom=Number($('fhdZoom'+control).value)/100,x=Number($('fhdX'+control).value),y=Number($('fhdY'+control).value);
 const scale=Math.min(740/img.width,490/img.height)*zoom;
 c.save();c.beginPath();c.rect(950,380,930,650);c.clip();c.drawImage(img,1395-img.width*scale/2+x,720-img.height*scale/2+y,img.width*scale,img.height*scale);c.restore();
 mobileText(c,registeredBrand(p),180,540,600,72,40,textColor('title','#414749'));
-mobileText(c,p.bannerTitle,176,630,640,64,36,textColor('title','#414749'));
+mobileText(c,titleWithoutBrand(p),176,630,640,64,36,textColor('title','#414749'));
 mobileText(c,p.nombre,176,690,640,46,26,textColor('name','#414749'),'400');
-c.fillStyle='#414749';c.beginPath();c.roundRect(174,722,602,150,25);c.fill();
+drawPricePlate(c,'vertical',174,722,602,150,p.precio.descuento>0);
 mobileText(c,money(p.precio.efectivo),194,840,558,120,60,textColor('price','#fff'));
 if(p.precio.referencia>p.precio.efectivo){
 const value=money(p.precio.referencia);c.font='700 46px Ubuntu';const width=Math.min(c.measureText(value).width,280);
 mobileText(c,value,260,918,280,46,26,textColor('price','#414749'));c.strokeStyle=textColor('price','#414749');c.lineWidth=3;c.beginPath();c.moveTo(250,901);c.lineTo(270+width,901);c.stroke();
 }
-if(p.precio.descuento>0){c.fillStyle='#8ce5b0';c.beginPath();c.moveTo(550,856);c.lineTo(723,856);c.quadraticCurveTo(739,856,739,872);c.lineTo(739,932);c.quadraticCurveTo(739,944,726,945);c.lineTo(581,954);c.quadraticCurveTo(569,956,565,944);c.lineTo(540,878);c.quadraticCurveTo(534,860,550,856);c.fill();mobileText(c,'-'+p.precio.descuento+'%',565,925,160,70,40,textColor('discount','#104d32'))}
+if(p.precio.descuento>0){mobileText(c,'-'+p.precio.descuento+'%',565,925,160,70,40,textColor('discount','#104d32'))}
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'pantalla-fhd-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('fhdControls'+index),button)}
 else{const controls=$('fhdControls'+index);if(controls.parentNode!==card)card.insertBefore(controls,card.querySelector('button'))}
 return card;
@@ -322,11 +370,9 @@ const scale=Math.min(910/img.width,560/img.height)*zoom;
 c.save();c.beginPath();c.rect(4000,200,1400,650);c.clip();c.drawImage(img,4640-img.width*scale/2+x,525-img.height*scale/2+y,img.width*scale,img.height*scale);c.restore();
 mobileText(c,p.bannerTitle,2430,390,1030,72,42,textColor('title','#414749'));
 mobileText(c,p.nombre,2430,458,1030,54,32,textColor('name','#414749'),'400');
-// Repaint the complete placeholder so a zero discount has no green badge.
-c.fillStyle='#414749';c.beginPath();c.roundRect(2355,490,1050,244,50);c.fill();
 const discounted=p.precio.descuento>0;
-if(discounted){c.save();c.beginPath();c.roundRect(2355,490,1050,244,50);c.clip();c.fillStyle='#8ce5b0';c.beginPath();c.moveTo(3100,490);c.lineTo(3405,490);c.lineTo(3405,734);c.lineTo(3030,734);c.lineTo(2968,558);c.quadraticCurveTo(2958,537,2985,529);c.closePath();c.fill();c.restore()}
-mobileText(c,money(p.precio.efectivo),2382,656,discounted?565:990,126,64,textColor('price','#fff'));
+drawPricePlate(c,'horizontal',2355,490,1050,244,discounted);
+mobileText(c,money(p.precio.efectivo),2382,656,565,126,64,textColor('price','#fff'));
 if(p.precio.referencia>p.precio.efectivo)mobileText(c,'Referencial: '+money(p.precio.referencia),2415,714,550,42,28,textColor('price','#fff'),'400');
 if(discounted)mobileText(c,'-'+p.precio.descuento+'%',3010,669,365,164,84,textColor('discount','#104d32'));
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'pantalla-horizontal-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('horizontalControls'+index),button)}
@@ -346,15 +392,12 @@ const img=scene.renderedImages[i],zoom=Number($('horizontal3840Zoom'+control).va
 const scale=Math.min(750/img.width,470/img.height)*zoom;
 c.save();c.beginPath();c.rect(2800,220,850,600);c.clip();c.drawImage(img,3260-img.width*scale/2+x,515-img.height*scale/2+y,img.width*scale,img.height*scale);c.restore();
 mobileText(c,registeredBrand(p),2080,360,610,70,40,textColor('title','#414749'));
-mobileText(c,p.bannerTitle,2080,452,610,64,36,textColor('title','#414749'));
+mobileText(c,titleWithoutBrand(p),2080,452,610,64,36,textColor('title','#414749'));
 mobileText(c,p.nombre,2080,510,610,46,26,textColor('name','#414749'),'400');
-// Restore the lower badge area from a clean portion of the same background panel.
-const sx=scene.horizontal3840Bg.width/3840,sy=scene.horizontal3840Bg.height/1080;
-c.drawImage(scene.horizontal3840Bg,2450*sx,420*sy,230*sx,100*sy,2450,690,230,100);
-c.fillStyle='#414749';c.beginPath();c.roundRect(2075,535,620,155,25);c.fill();
+drawPricePlate(c,'vertical',2075,535,620,155,p.precio.descuento>0);
 mobileText(c,money(p.precio.efectivo),2098,660,575,120,60,textColor('price','#fff'));
 if(p.precio.referencia>p.precio.efectivo){const value=money(p.precio.referencia);c.font='700 46px Ubuntu';const width=Math.min(c.measureText(value).width,280);mobileText(c,value,2155,735,280,46,26,textColor('price','#414749'));c.strokeStyle=textColor('price','#414749');c.lineWidth=3;c.beginPath();c.moveTo(2145,718);c.lineTo(2165+width,718);c.stroke()}
-if(p.precio.descuento>0){c.fillStyle='#8ce5b0';c.beginPath();c.moveTo(2467,673);c.lineTo(2642,673);c.quadraticCurveTo(2658,673,2658,689);c.lineTo(2658,754);c.quadraticCurveTo(2658,767,2644,768);c.lineTo(2496,775);c.quadraticCurveTo(2483,777,2479,764);c.lineTo(2454,697);c.quadraticCurveTo(2447,678,2467,673);c.fill();mobileText(c,'-'+p.precio.descuento+'%',2480,746,165,70,40,textColor('discount','#104d32'))}
+if(p.precio.descuento>0){mobileText(c,'-'+p.precio.descuento+'%',2480,746,165,70,40,textColor('discount','#104d32'))}
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'horizontal-3840-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('horizontal3840Controls'+index),button)}
 else{const controls=$('horizontal3840Controls'+index);if(controls.parentNode!==card)card.insertBefore(controls,card.querySelector('button'))}
 return card;
@@ -363,7 +406,7 @@ const container=$('horizontal3840Previews');if(container.children.length!==cards
 }
 function exportBlob(output){const mime='image/'+$('exportFormat').value;return new Promise((resolve,reject)=>{try{output.toBlob(blob=>{if(!blob)return reject(new Error('No se pudo exportar la imagen.'));if(blob.type!==mime)return reject(new Error('El navegador no admite este formato. Selecciona PNG.'));resolve(blob)},mime,0.9)}catch{reject(new Error('No se pudo exportar la imagen. Comprueba los permisos CORS de los fondos.'))}})}
 function updateExportLabels(){const format=$('exportFormat').value.toUpperCase();$('download').textContent='Descargar escritorio '+format;root.querySelectorAll('#mobilePreviews button').forEach((button,i)=>{button.textContent='Descargar mobile '+(i+1)+' '+format});root.querySelectorAll('#storyPreviews button').forEach((button,i)=>{button.textContent='Descargar storie '+(i+1)+' '+format});root.querySelectorAll('#fhdPreviews button').forEach((button,i)=>{button.textContent='Descargar Pantalla FHD '+(i+1)+' '+format});root.querySelectorAll('#miniPreviews button').forEach((button,i)=>{button.textContent='Descargar Mini Totem '+(i+1)+' '+format});root.querySelectorAll('#horizontalPreviews button').forEach((button,i)=>{button.textContent='Descargar Horizontal 5760 '+(i+1)+' '+format});root.querySelectorAll('#horizontal3840Previews button').forEach((button,i)=>{button.textContent='Descargar Horizontal 3840 '+(i+1)+' '+format})}
-$('exportFormat').addEventListener('change',updateExportLabels);
+$('exportFormat').addEventListener('change',()=>{updateExportLabels();if(lastScene&&!$('downloadAll')?.disabled)updatePreviewLinks()});
 async function downloadCanvas(output,filename){try{const blob=await exportBlob(output),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename.replace(/\.png$/,'.'+blob.type.split('/')[1]);a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)}catch(error){status(error.message,true)}}
 function renderScene(scene){
 textColors=readTextColors();
@@ -407,7 +450,7 @@ if(campaignSelector&&!campaignSelector.value)throw new Error('Selecciona una cam
 if(!slots.length)throw new Error('Ingresa al menos un ID de producto.');
 if(!Object.values(formats).some(Boolean))throw new Error('Selecciona al menos un formato: Desk, Mobile, Storie, FHD, Mini Totem, Horizontal 5760 o Horizontal 3840.');
 status('Consultando productos y cargando los formatos seleccionados...');
-textColors=readTextColors();const ids=slots.map(slot=>slot.id);await loadFonts();
+textColors=readTextColors();const ids=slots.map(slot=>slot.id);await Promise.all([loadFonts(),loadPricePlates()]);
 const [bg,products,mobileBg,storyBg,fhdBg,miniBg,horizontalBg,horizontal3840Bg]=await Promise.all([formats.desk?loadBackground(ids.length):null,getProducts(ids),formats.mobile?loadMobileBackground():null,formats.story?loadStoryBackground():null,formats.fhd?loadFhdBackground():null,formats.mini?loadMiniBackground():null,formats.horizontal?loadHorizontalBackground():null,formats.horizontal3840?loadHorizontal3840Background():null]);
 const options=slots.map(slot=>imageOptions(slot.index));
 if(options.some(option=>!Number.isFinite(option.tolerance)||option.tolerance<5||option.tolerance>90))throw new Error('La intensidad debe estar entre 5 y 90.');
@@ -422,7 +465,7 @@ const labels={desk:'Desk',mobile:'Mobile',story:'Storie',fhd:'FHD',mini:'Mini To
 status((results.some(result=>result.fallback)?'Una imagen no estaba disponible; se usa la imagen 1. ':'')+'Generados: '+Object.keys(formats).filter(key=>formats[key]).map(key=>labels[key]).join(', ')+'.'+(formats.desk&&(bg.width!==1920||bg.height!==525)?' El fondo Desk se ajusto a 1920 x 525 px.':''));
 return true;
 }catch(error){invalidate();status(error.message||'No se pudo generar el banner.',true);return false}
-finally{busy=false;if(campaignSelector)campaignSelector.disabled=false;$('generate').disabled=false;for(const id of Object.values(formatFields))$(id).disabled=false;syncCutoutControls()}
+finally{busy=false;if(campaignSelector)campaignSelector.disabled=!!window.bannerBatch?.isMassive();$('generate').disabled=false;for(const id of Object.values(formatFields))$(id).disabled=false;syncCutoutControls()}
 }
 $('form').addEventListener('submit',event=>{
 if(window.bannerBatch?.isMassive()){event.preventDefault();window.bannerBatch.generate();return}
@@ -479,6 +522,7 @@ lastScene.slots.forEach((slot,i)=>{const control=controlNames[slot.index];$('pri
 refreshEdits();return true;
 },
 endpointPrices:()=>lastScene?.products.map(p=>({efectivo:p.precio.efectivo,referencia:Number.isFinite(p.precio.referencia)?p.precio.referencia:p.precio.efectivo})),
+campaignConfig:entry=>({campaign:entry.meta.uuid,values:parseCampaign(JSON.stringify(entry))}),
 snapshot:()=>({campaign:campaignSelector.value,values:{...campaignValues},formats:selectedFormats(),exportFormat:$('exportFormat').value,ready:!!loadedCampaignId&&!campaignLoading&&!busy}),
 async run(config){
 campaignSelector.value=config.campaign;campaignValues={...config.values};loadedCampaignId=config.campaign;campaignLoading=false;

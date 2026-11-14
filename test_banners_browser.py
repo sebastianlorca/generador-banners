@@ -14,11 +14,14 @@ TEST = r'''
 const $=id=>document.getElementById(id),wait=async predicate=>{for(let i=0;i<300;i++){if(predicate())return;await new Promise(r=>setTimeout(r,50))}throw Error('Tiempo de espera agotado')},assert=(v,m)=>{if(!v)throw Error(m)};
 try{
 await wait(()=>window.bannerGenerator);
-$('selector-campana').selectedIndex=1;$('selector-campana').dispatchEvent(new Event('change'));
-await wait(()=>bannerGenerator.snapshot().ready);
+assert(!bannerGenerator.snapshot().ready,'Inicio sin campaña individual');
 $('generationMode').value='massive';$('generationMode').dispatchEvent(new Event('change'));
-$('loadSheets').click();await wait(()=>$('sheetWeek').value==='W45');
+assert($('selector-campana').disabled&&$('selector-campana').closest('section').hidden,'Campaña solo individual');
+assert($('sheetWeek').options.length===52&&!$('sheetWeek').disabled,'Semanas disponibles antes de cargar');
+$('sheetWeek').value='W45';$('loadSheets').click();await wait(()=>$('sheetSummary').children.length===4);
 assert($('sheetSummary').children.length===4,'Resumen');
+assert($('sheetStatus').textContent.includes('4 banners · 4 listos · 0 por revisar'),'Conteo inicial de tarjetas');
+assert($('sheetSummary').firstElementChild.querySelector('.batch-card-title').textContent&&$('sheetSummary').firstElementChild.dataset.state==='ready','Tarjeta con nombre y estado');
 for(const input of document.querySelectorAll('.format-options input')){
 if(!['formatDesk','formatMobile'].includes(input.id))input.click();
 }
@@ -27,17 +30,25 @@ const groupFormat=(index,key)=>groupRows[index].querySelector('[data-format="'+k
 groupFormat(0,'mobile').click();
 groupFormat(2,'desk').click();
 groupFormat(2,'mobile').click();
+assert(groupRows[2].dataset.state==='review'&&$('sheetStatus').textContent.includes('1 por revisar'),'Estado al desmarcar todos los formatos');
 await bannerBatch.generate();
 assert(!$('batchTab0')&&$('status').textContent.includes('Faltan formatos'),'Validar grupo sin formatos');
 groupFormat(2,'mobile').click();
-await bannerBatch.generate();
+$('generate').click();
+await wait(()=>$('status').textContent.startsWith('Proceso terminado:'));
 const tabs=[...document.querySelectorAll('[role=tab]')],frames=[...document.querySelectorAll('iframe')];
 assert(tabs.length===4&&frames.length===3,'Pestañas y continuidad tras error: '+tabs.length+'/'+frames.length+' '+document.querySelectorAll('.batch-panel')[0]?.textContent);
 assert(tabs[1].dataset.error==='true','Error por grupo');
 const first=frames[0].contentDocument,second=frames[1].contentDocument;
+const previewLink=first.getElementById('canvas').closest('a');
+await wait(()=>previewLink?.href.startsWith('blob:'));
+const initialPreviewUrl=previewLink.href;
+assert(previewLink.target==='_blank'&&(await(await fetch(initialPreviewUrl)).blob()).type==='image/png','Vista previa Blob PNG con enlace nativo a nueva pestaña');
+assert(frames[0].contentWindow.bannerGenerator.snapshot().campaign==='40dd98db-cdc8-4d40-9950-a195bdbde8a5','Cruce por slug normalizado');
+assert(frames[1].contentWindow.bannerGenerator.snapshot().campaign==='ddd3ff5d-88dd-4ca7-86f6-959313238eea','Campana distinta por grupo mediante UUID');
 assert(first.getElementById('formatDesk').checked&&!first.getElementById('formatMobile').checked,'Primer grupo solo Desk');
 assert(!second.getElementById('formatDesk').checked&&second.getElementById('formatMobile').checked,'Otro grupo solo Mobile');
-assert(tabs[0].getAttribute('aria-selected')==='true'&&getComputedStyle(tabs[0]).backgroundColor!==getComputedStyle(tabs[2]).backgroundColor,'Estilo activo diferenciado');
+await wait(()=>tabs[0].getAttribute('aria-selected')==='true'&&getComputedStyle(tabs[0]).backgroundColor!==getComputedStyle(tabs[2]).backgroundColor);
 assert(first.getElementById('download').disabled===false,'Descarga habilitada');
 assert(first.getElementById('titleLeft').value==='Familia Marca®','Marca registrada en titulo del grupo');
 const toggles=[...document.querySelectorAll('.sheet-prices-toggle')];
@@ -46,6 +57,7 @@ assert(first.getElementById('referenceLeft').value==='1029990','Referencial de p
 assert(first.getElementById('discountLeft').textContent.includes('40'),'Descuento de planilla');
 toggles[0].checked=false;toggles[0].dispatchEvent(new Event('change'));
 assert(first.getElementById('priceLeft').value==='100'&&first.getElementById('referenceLeft').value==='200','Restaurar endpoint');
+await wait(()=>previewLink.href.startsWith('blob:')&&previewLink.href!==initialPreviewUrl);
 assert(second.getElementById('priceRight').value==='799990','Orden e independencia de precios');
 toggles[0].checked=true;toggles[0].dispatchEvent(new Event('change'));
 assert(first.getElementById('priceLeft').value==='619990'&&!first.getElementById('download').disabled,'Volver a planilla y descargar');
@@ -75,12 +87,34 @@ assert(sent.length===2&&sent.every(name=>name.startsWith('banner-mobile-')&&name
 const canvas=first.getElementById('canvas');const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp'));assert(blob?.type==='image/webp','Exportar WebP real');
 $('generationMode').value='individual';$('generationMode').dispatchEvent(new Event('change'));
 assert(!$('individualResults').hidden&&!$('left').disabled,'Modo individual');
+$('selector-campana').selectedIndex=1;$('selector-campana').dispatchEvent(new Event('change'));
+await wait(()=>bannerGenerator.snapshot().ready);
 const config=bannerGenerator.snapshot();Object.keys(config.formats).forEach(k=>config.formats[k]=true);
 const result=await bannerGenerator.run({...config,ids:['1','2','3']});assert(result.ok,'Generación individual con siete formatos');
 assert(document.querySelectorAll('#individualResults canvas').length===19,'Canvas de siete formatos');
 assert($('titleLeft').value==='Familia Marca®','Marca registrada en modo Individual');
 assert($('downloadAll')&&!$('downloadAll').disabled,'Descarga masiva disponible en modo Individual');
-$('sheetCycle').value='43';$('sheetCycle').dispatchEvent(new Event('change'));assert($('sheetSummary').children.length===1,'Segundo ciclo');
+await wait(()=>document.querySelectorAll('#individualResults a.banner-preview-link[href^="blob:"]').length===19);
+const individualPreview=$('canvas').closest('a');
+assert((await(await fetch(individualPreview.href)).blob()).type==='image/webp','Blob de vista previa respeta selector WebP');
+const pixel=(container,x,y)=>Array.from($(container).querySelector('canvas').getContext('2d').getImageData(x,y,1,1).data).slice(0,3).join(',');
+assert(pixel('mobilePreviews',243,324)==='169,228,176','SVG vertical con grupo DCTO visible');
+assert(pixel('storyPreviews',885,1480)==='142,232,178','SVG horizontal en Storie');
+bannerGenerator.setPrices([{efectivo:100,referencia:100},{efectivo:100,referencia:0},{efectivo:100,referencia:100}]);
+assert(pixel('mobilePreviews',243,324)!=='169,228,176','Ocultar DCTO con descuento cero');
+assert(pixel('storyPreviews',885,1480)==='142,232,178','Conservar verde del horizontal sin descuento');
+bannerGenerator.setPrices([{efectivo:100,referencia:200},{efectivo:100,referencia:200},{efectivo:100,referencia:200}]);
+assert(pixel('mobilePreviews',243,324)==='169,228,176','Restaurar DCTO al volver el descuento');
+$('sheetCycle').value='43';$('sheetCycle').dispatchEvent(new Event('change'));assert($('sheetSummary').children.length===2,'Segundo ciclo');
+assert($('sheetStatus').textContent.includes('1 listos · 1 por revisar')&&$('sheetSummary').children[1].querySelector('.batch-card-badge').textContent.includes('Sin campaña'),'Campaña pendiente visible en tarjeta y conteo');
+$('generationMode').value='massive';$('generationMode').dispatchEvent(new Event('change'));
+await bannerBatch.generate();assert(document.querySelectorAll('iframe').length===1,'Generar segundo ciclo');
+assert(document.querySelectorAll('.batch-panel')[1].textContent.includes('no ten\u00eda concepto'),'Omitir concepto vacio');
+$('sheetCycle').value='9';$('sheetCycle').dispatchEvent(new Event('change'));
+// Un concepto desconocido y uno vacío deben omitir sus grupos sin consultar productos.
+window.bannerCampaigns=[];
+await bannerBatch.generate();
+assert(!document.querySelector('iframe')&&document.querySelector('.batch-panel').textContent.includes('no se encontró diseño'),'Omitir conceptos sin coincidencia');
 document.body.setAttribute('data-test-result','PASS');
 }catch(error){document.body.setAttribute('data-test-result','FAIL: '+error.message)}
 })();
@@ -100,13 +134,13 @@ class Handler(SimpleHTTPRequestHandler):
         mime = 'application/json'
         if request.path.startswith('/api/campaigns/'):
             names = ['Banner Principal Web Desk (1 producto)', 'Banner Principal Web Desk (2 productos)', 'Banner Principal Web Desk (3 productos)', 'Banner Principal Web Mobile', 'Banner Stories', 'Pantalla FHD', 'Banner Mini Totem', 'Horizontal 5760', 'Horizontal 3840']
-            content = json.dumps({'meta': {'uuid': request.path.rsplit('/', 1)[-1], 'name': 'Campaña simulada'}, 'fields': {name: {'url': 'https://assets-v3.pcfactory.cl/uploads/fixture.svg'} for name in names}}).encode()
+            content = json.dumps({'meta': {'uuid': request.path.rsplit('/', 1)[-1], 'slug': 'toma-tu-like' if request.path.endswith('40dd98db-cdc8-4d40-9950-a195bdbde8a5') else request.path.rsplit('/', 1)[-1], 'name': 'Campaña simulada'}, 'fields': {name: {'url': 'https://assets-v3.pcfactory.cl/uploads/fixture.svg'} for name in names}}).encode()
         elif request.path == '/api/products':
             ids = params.get('productsIds', [])
             content = json.dumps([{'id': int(i), 'nombre': 'Producto ' + i, 'familia': {'nombre': 'Familia'}, 'marca': {'nombre': 'Marca'}, 'precio': {'efectivo': 100, 'referencia': 200}, 'imagenes': {'0': {'250': 'https://assets.pcfactory.cl/public/foto/fixture.svg'}}} for i in ids if i != '999']).encode()
         elif request.path == '/api/sheets':
-            def group(ids): return {'cell': 'E9', 'ids': ids, 'value': '-'.join(ids), 'error': '', 'sheetPrices': [{'efectivo': 619990, 'referencia': 1029990}, {'efectivo': 799990, 'referencia': 1189990}][:len(ids)] if len(ids) < 3 else None}
-            content = json.dumps({'sheets': [{'name': 'W45', 'cycles': {'9': [group(['1']), group(['999']), group(['1', '2']), group(['1', '2', '3'])], '43': [group(['2'])]}}]}).encode()
+            def group(ids): return {'cell': 'E9', 'campaignCell': 'E3', 'campaignConcept': 'ddd3ff5d-88dd-4ca7-86f6-959313238eea' if len(ids)==2 else '  Tóma tu LIKE  ', 'ids': ids, 'value': '-'.join(ids), 'error': '', 'sheetPrices': [{'efectivo': 619990, 'referencia': 1029990}, {'efectivo': 799990, 'referencia': 1189990}][:len(ids)] if len(ids) < 3 else None}
+            content = json.dumps({'sheets': [{'name': 'W45', 'cycles': {'9': [group(['1']), group(['999']), group(['1', '2']), group(['1', '2', '3'])], '43': [group(['2']), {**group(['1']), 'campaignConcept': '', 'campaignCell': 'F37'}]}}]}).encode()
         elif request.path == '/custom.svg':
             mime = 'image/svg+xml'
             content = b'<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="128" height="128" fill="white"/></svg>'

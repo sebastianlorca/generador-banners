@@ -5,10 +5,18 @@ const section=$('products-heading').closest('section');
 const modeLabel=document.createElement('label');modeLabel.textContent='Modo de generación';
 const mode=document.createElement('select');mode.id='generationMode';
 for(const [value,label] of [['individual','Individual'],['massive','Masivo desde Google Sheets']])mode.add(new Option(label,value));
-modeLabel.append(mode);section.querySelector('h3').after(modeLabel);
+modeLabel.append(mode);
+const modeSection=document.createElement('section');modeSection.className='config-section';
+modeSection.innerHTML='<h3><span class="step-number">01</span> Forma de generar los banners</h3>';
+modeSection.append(modeLabel);$('form').prepend(modeSection);
+const campaignSection=$('campaign-heading').closest('section');
+$('campaign-heading').querySelector('.step-number').textContent='02';
+$('products-heading').querySelector('.step-number').textContent='03';
+$('formats-heading').querySelector('.step-number').textContent='04';
 const settings=document.createElement('div');settings.className='batch-settings';settings.hidden=true;
-settings.innerHTML='<label>Enlace o ID de Google Sheets<input id="sheetSource" type="text" value="https://docs.google.com/spreadsheets/d/1ic5fOWwP3AqzgsIcJ70ySvrq0y0TPX-nB3-KZnfieeQ/edit"></label><button id="loadSheets" type="button" class="secondary">Cargar / actualizar planilla</button><label>Hoja semanal<select id="sheetWeek" disabled><option value="">Carga la planilla primero</option></select></label><label>Ciclo<select id="sheetCycle"><option value="9">Lunes a jueves · fila 9</option><option value="43">Viernes a domingo · fila 43</option></select></label><p id="sheetStatus" role="status" aria-live="polite"></p><div id="sheetSummary" class="batch-summary" hidden></div>';
+settings.innerHTML='<label>Enlace o ID de Google Sheets<input id="sheetSource" type="text" value="https://docs.google.com/spreadsheets/d/1ic5fOWwP3AqzgsIcJ70ySvrq0y0TPX-nB3-KZnfieeQ/edit"></label><label>Hoja semanal<select id="sheetWeek"></select></label><button id="loadSheets" type="button" class="secondary">Cargar / actualizar semana</button><label>Ciclo<select id="sheetCycle"><option value="9">Lunes a jueves · fila 9</option><option value="43">Viernes a domingo · fila 43</option></select></label><p id="sheetStatus" role="status" aria-live="polite"></p><div id="sheetSummary" class="batch-summary" hidden></div>';
 section.append(settings);
+for(let week=1;week<=52;week++){const name='W'+String(week).padStart(2,'0');$('sheetWeek').add(new Option(name,name))}
 const results=document.createElement('div');results.id='individualResults';
 let node=$('form').nextSibling;
 while(node){const next=node.nextSibling;results.append(node);node=next}
@@ -26,52 +34,78 @@ const groupFormats=new WeakMap();
 const formatHelp=$('formats-heading').nextElementSibling;
 const individualFormatHelp=formatHelp.textContent;
 const groups=()=>sheets.find(sheet=>sheet.name===$('sheetWeek').value)?.cycles[$('sheetCycle').value]||[];
+const slug=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+function campaignFor(group){
+const concept=group.campaignConcept?.trim();
+if(!concept)throw new Error(group.campaignCell+': no tenía concepto de campaña. Banner no generado.');
+const entries=window.bannerCampaigns||[];
+let matches=entries.filter(entry=>entry.meta.uuid.toLowerCase()===concept.toLowerCase());
+if(!matches.length)matches=entries.filter(entry=>entry.meta.slug&&slug(entry.meta.slug)===slug(concept));
+if(!matches.length)matches=entries.filter(entry=>slug(entry.meta.name)===slug(concept));
+if(matches.length!==1)throw new Error(group.campaignCell+': '+(matches.length?'el concepto coincide con varias campañas':'no se encontró diseño de campaña para «'+concept+'»')+'. Banner no generado.');
+return matches[0];
+}
 const groupLabel=group=>group.cell+': '+(group.name||group.ids.join(' - ')||group.value);
 const shortGroupLabel=group=>{const characters=Array.from(groupLabel(group));return characters.length>45?characters.slice(0,44).join('')+'…':characters.join('')};
 function clearBatch(){tabs.replaceChildren();panels.replaceChildren();progress.textContent=''}
+function updateSummaryStatus(){
+const cards=Array.from($('sheetSummary').children),review=cards.filter(card=>card.dataset.state!=='ready').length;
+$('sheetStatus').textContent=sheets.length?cards.length+' banners · '+(cards.length-review)+' listos · '+review+' por revisar'+(cards.length?'':' en este ciclo'):'';
+}
 function summarize(){
 clearBatch();const rows=groups(),summary=$('sheetSummary');summary.replaceChildren();summary.hidden=!rows.length;
 for(const group of rows){
 const row=document.createElement('div'),heading=document.createElement('p');
 row.className='batch-group';heading.id='sheet-group-'+group.cell;
-heading.textContent=shortGroupLabel(group)+(group.error?' — '+group.error:'');heading.title=groupLabel(group);
-heading.classList.toggle('batch-error',!!group.error);row.append(heading);summary.append(row);
-if(group.error)continue;
+const header=document.createElement('div'),position=document.createElement('span'),badge=document.createElement('span');
+header.className='batch-card-header';position.textContent='Banner '+(summary.children.length+1)+' · '+group.cell;badge.className='batch-card-badge';header.append(position,badge);
+heading.className='batch-card-title';heading.textContent=group.name||group.ids.join(' · ')||group.value;heading.title=groupLabel(group);
+row.setAttribute('aria-labelledby',heading.id);row.append(header,heading);summary.append(row);
+const concept=document.createElement('p'),cell=document.createElement('small');let campaignError='';
+cell.className='batch-card-cell';cell.textContent='Celda de campaña: '+group.campaignCell;
+try{const entry=campaignFor(group);concept.textContent='Campaña: '+entry.meta.name}catch(error){campaignError=error.message;concept.textContent=group.campaignConcept?'No encontramos una campaña para «'+group.campaignConcept+'».':'Falta el concepto de campaña.';if(error.message.includes('varias campañas'))concept.textContent='El concepto coincide con varias campañas.';cell.textContent='Revisa '+group.campaignCell+' en la planilla. Este banner se omitirá.';concept.className='batch-card-warning'}
+row.append(concept,cell);
+const products=document.createElement('p');products.className='batch-card-products';products.textContent='Productos: '+(group.ids.join(' · ')||'IDs inválidos');row.append(products);
+if(group.error){const error=document.createElement('p');error.className='batch-card-warning';error.textContent=group.error;row.append(error);row.dataset.state='review';badge.textContent='⚠ Revisar IDs';continue}
 const controls=document.createElement('div');
 controls.className='batch-group-formats';controls.setAttribute('role','group');controls.setAttribute('aria-labelledby',heading.id);
 let formats=groupFormats.get(group);
 if(!formats){formats=Object.fromEntries(formatInputs.map(input=>[formatKey(input),input.checked]));groupFormats.set(group,formats)}
+const updateCard=()=>{const empty=!Object.values(formats).some(Boolean);row.dataset.state=campaignError||empty?'review':'ready';badge.textContent=campaignError?'⚠ Sin campaña':empty?'⚠ Sin formatos':'✓ Listo';updateSummaryStatus()};
+row.updateStatus=updateCard;
 for(const input of formatInputs){
 const key=formatKey(input),label=document.createElement('label'),checkbox=document.createElement('input');
 checkbox.type='checkbox';checkbox.checked=formats[key];checkbox.dataset.format=key;
-checkbox.addEventListener('change',()=>{formats[key]=checkbox.checked;clearBatch()});
+checkbox.addEventListener('change',()=>{formats[key]=checkbox.checked;clearBatch();updateCard()});
 label.append(checkbox,document.createTextNode(input.nextElementSibling.firstChild.textContent));controls.append(label);
 }
-row.append(controls);
+const formatLabel=document.createElement('p');formatLabel.className='batch-card-formats-title';formatLabel.textContent='Formatos';row.append(formatLabel,controls);updateCard();
 }
-$('sheetStatus').textContent=sheets.length?(rows.length+' grupos encontrados. '+(rows.some(group=>group.error)?'Corrige las celdas marcadas antes de generar.':'Revisa los IDs antes de generar.')):'';
+updateSummaryStatus();
 }
 mode.addEventListener('change',()=>{
-const massive=mode.value==='massive';settings.hidden=!massive;section.querySelector('.product-fields').hidden=massive;$('version').hidden=massive;
+const massive=mode.value==='massive';campaignSection.hidden=massive;$('selector-campana').disabled=massive;$('selector-campana').required=!massive;
+$('generate').disabled=false;settings.hidden=!massive;section.querySelector('.product-fields').hidden=massive;$('version').hidden=massive;
 formatHelp.textContent=massive?'Cambia un formato aquí para aplicarlo a todos los grupos. Ajusta cada banner en la lista de la planilla.':individualFormatHelp;
 for(const id of ['left','right','third'])$(id).disabled=massive;
 results.hidden=massive;batch.hidden=!massive;
 });
-$('sheetWeek').addEventListener('change',summarize);$('sheetCycle').addEventListener('change',summarize);
-$('sheetSource').addEventListener('input',()=>{sheets=[];$('sheetWeek').replaceChildren(new Option('Carga la planilla primero',''));$('sheetWeek').disabled=true;summarize();$('sheetStatus').textContent='Carga la planilla para aplicar el nuevo enlace.'});
+$('sheetWeek').addEventListener('change',()=>{sheets=[];summarize();$('sheetStatus').textContent='Pulsa Cargar / actualizar semana para leer '+$('sheetWeek').value+'.'});$('sheetCycle').addEventListener('change',summarize);
+$('sheetSource').addEventListener('input',()=>{sheets=[];summarize();$('sheetStatus').textContent='Carga la planilla para aplicar el nuevo enlace.'});
 $('loadSheets').addEventListener('click',async()=>{
 if(loading||running)return;loading=true;clearBatch();sheets=[];$('sheetSummary').hidden=true;$('sheetWeek').disabled=true;$('loadSheets').disabled=true;$('sheetSource').disabled=true;
 const source=$('sheetSource').value.trim();let id=source;
 try{
 if(source.startsWith('https://')){const url=new URL(source);if(url.hostname!=='docs.google.com')throw new Error('Usa un enlace de docs.google.com.');id=url.pathname.match(/^\/spreadsheets\/d\/([A-Za-z0-9_-]+)/)?.[1]||''}
 if(!/^[A-Za-z0-9_-]{20,100}$/.test(id))throw new Error('Introduce un enlace o ID válido de Google Sheets.');
-$('sheetStatus').textContent='Leyendo hojas y ciclos de Google Sheets…';
-const response=await fetch('/api/sheets?id='+encodeURIComponent(id),{cache:'no-store',signal:AbortSignal.timeout(45000)}),data=await response.json();
+$('sheetStatus').textContent='Leyendo hojas y ciclos de Google Sheets… La carga puede tardar hasta 2 minutos.';
+const response=await fetch('/api/sheets?id='+encodeURIComponent(id)+'&week='+encodeURIComponent($('sheetWeek').value),{cache:'no-store',signal:AbortSignal.timeout(150000)}),data=await response.json();
 if(!response.ok)throw new Error(data.error||'No se pudo cargar la planilla.');
-if(data.sheets.some(sheet=>Object.values(sheet.cycles).some(rows=>rows.some(group=>!Object.hasOwn(group,'sheetPrices')))))throw new Error('El servidor local está ejecutando la versión anterior, que solo lee IDs. Cierra la ventana del servidor Python, vuelve a ejecutar iniciar-mvp.cmd y pulsa Cargar / actualizar planilla.');
-sheets=data.sheets;$('sheetWeek').replaceChildren(...sheets.map(sheet=>new Option(sheet.name,sheet.name)));$('sheetWeek').disabled=false;summarize();
-}catch(error){$('sheetWeek').replaceChildren(new Option('Carga la planilla primero',''));$('sheetStatus').textContent=error.message}
-finally{loading=false;$('loadSheets').disabled=false;$('sheetSource').disabled=false}
+if(data.sheets.some(sheet=>Object.values(sheet.cycles).some(rows=>rows.some(group=>!Object.hasOwn(group,'campaignConcept')))))throw new Error('El servidor local está ejecutando la versión anterior, que no lee conceptos de campaña. Cierra la ventana del servidor Python, vuelve a ejecutar iniciar-mvp.cmd y pulsa Cargar / actualizar planilla.');
+if(data.sheets.length!==1||data.sheets[0].name!==$('sheetWeek').value)throw new Error('El servidor no devolvió la semana seleccionada. Reinicia iniciar-mvp.cmd y recarga con Ctrl+F5.');
+sheets=data.sheets;summarize();
+}catch(error){$('sheetStatus').textContent=error.message}
+finally{$('sheetWeek').disabled=false;loading=false;$('loadSheets').disabled=false;$('sheetSource').disabled=false}
 });
 function activate(index,focus=false){
 Array.from(tabs.children).forEach((tab,i)=>{const selected=i===index;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;panels.children[i].hidden=!selected;if(selected&&focus)tab.focus()});
@@ -95,7 +129,6 @@ return frame;
 window.bannerBatch={isMassive:()=>mode.value==='massive',async generate(){
 if(running||loading)return;
 const config=window.bannerGenerator.snapshot(),rows=groups();
-if(!config.ready){$('status').textContent='Selecciona una campaña y espera a que termine de cargar.';return}
 if(!rows.length||rows.some(group=>group.error)){$('status').textContent='Carga una planilla y selecciona un ciclo con grupos válidos. Corrige los errores antes de generar.';return}
 const emptyGroups=rows.filter(group=>!Object.values(groupFormats.get(group)).some(Boolean));
 if(emptyGroups.length){$('status').textContent='Selecciona al menos un formato para cada grupo. Faltan formatos en '+emptyGroups.map(group=>group.cell).join(', ')+'.';return}
@@ -108,7 +141,8 @@ panel.id='batchPanel'+i;panel.className='batch-panel';panel.setAttribute('role',
 tab.addEventListener('click',()=>activate(i));tabs.append(tab);panels.append(panel);activate(i);
 progress.textContent='Generando '+(i+1)+' de '+rows.length+' · '+group.cell+'…';
 try{
-const frame=await createFrame(panel,{...config,formats:groupFormats.get(group),ids:group.ids}),generator=frame.contentWindow.bannerGenerator,endpointPrices=generator.endpointPrices();
+const entry=campaignFor(group);
+const frame=await createFrame(panel,{...config,...window.bannerGenerator.campaignConfig(entry),formats:groupFormats.get(group),ids:group.ids}),generator=frame.contentWindow.bannerGenerator,endpointPrices=generator.endpointPrices();
 const downloads=document.createElement('div'),downloadAll=document.createElement('button'),downloadStatus=document.createElement('span');
 downloads.className='batch-downloads';downloadAll.type='button';downloadAll.textContent='Descargar todos los formatos';
 downloadStatus.setAttribute('role','status');downloadStatus.setAttribute('aria-live','polite');
@@ -141,6 +175,7 @@ const formats=groupFormats.get(group);
 if(formats)formats[key]=input.checked;
 }
 for(const checkbox of $('sheetSummary').querySelectorAll('[data-format="'+key+'"]'))checkbox.checked=input.checked;
+for(const card of $('sheetSummary').children)card.updateStatus?.();
 clearBatch();
 });
 $('exportFormat').addEventListener('change',()=>{for(const frame of panels.querySelectorAll('iframe')){const select=frame.contentDocument.getElementById('exportFormat');select.value=$('exportFormat').value;select.dispatchEvent(new frame.contentWindow.Event('change'))}});

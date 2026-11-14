@@ -4,7 +4,7 @@ import json
 from unittest import TestCase, main
 from unittest.mock import patch
 from zipfile import ZipFile
-from planilla_banners import parse_workbook, parse_prices
+from planilla_banners import parse_workbook, parse_prices, parse_week_rows
 
 
 def workbook(shared_ids='123 / 456 / 789'):
@@ -35,6 +35,20 @@ class SheetsTests(TestCase):
         self.assertEqual(cycles['9'][2]['name'], 'Otro banner')
         self.assertEqual(cycles['43'][0]['name'], 'Fin de semana')
         self.assertEqual(cycles['43'][0]['nameCell'], 'E63')
+
+    def test_campaign_concepts_match_columns_and_cycles(self):
+        data = BytesIO()
+        with ZipFile(BytesIO(workbook())) as old, ZipFile(data, 'w') as new:
+            for name in old.namelist():
+                content = old.read(name)
+                if name.endswith('sheet1.xml'):
+                    extra = '<row r="3"><c r="E3" t="inlineStr"><is><t>Toma tu Like</t></is></c><c r="AA3" t="inlineStr"><is><t>Destacado</t></is></c></row><row r="37"><c r="E37" t="inlineStr"><is><t>Fin de semana</t></is></c></row>'
+                    content = content.replace(b'</sheetData>', (extra + '</sheetData>').encode())
+                new.writestr(name, content)
+        cycles = parse_workbook(data.getvalue())[0]['cycles']
+        self.assertEqual([(g['campaignCell'], g['campaignConcept']) for g in cycles['9']], [('E3', 'Toma tu Like'), ('G3', ''), ('AA3', 'Destacado')])
+        self.assertEqual(cycles['43'][0]['campaignConcept'], 'Fin de semana')
+        self.assertEqual(cycles['43'][0]['campaignCell'], 'E37')
 
     def test_commas_and_mixed_separators(self):
         for value, expected in [('123,456', ['123']), ('123, 456,789', ['123']), ('123 / 456,789', ['123', '456']), ('12345 - 23456, 23457', ['12345', '23456']), ('123,,456', ['123']), ('1/2/3/4', [])]:
@@ -74,6 +88,37 @@ class SheetsTests(TestCase):
         with self.assertRaisesRegex(ValueError, 'Google no entregó'):
             parse_workbook(b'<html>Sign in</html>')
 
+    def test_week_csv_preserves_columns_and_prices(self):
+        import csv
+        from io import StringIO
+        def row(cells):
+            out = StringIO()
+            writer = csv.writer(out)
+            writer.writerow([''] * len(cells))
+            writer.writerow(cells)
+            return out.getvalue().encode('utf-8-sig')
+        values = {
+            '3': row([''] * 4 + ['Campana']),
+            '9': row([''] * 4 + ['123.0', '', '456 - 789, 999'] + [''] * 19 + ['321']),
+            '17': row([''] * 4 + ['1.000']),
+            '18': row([''] * 4 + ['$900']),
+            '29': row([''] * 4 + ['Banner, con coma\ny salto']),
+            '43': row([''] * 4 + ['555']),
+            '37': row([''] * 4 + ['Otra']),
+        }
+        sheet = parse_week_rows('W45', values)
+        groups = sheet['cycles']['9']
+        self.assertEqual([g['cell'] for g in groups], ['E9', 'G9', 'AA9'])
+        self.assertEqual(groups[0]['ids'], ['123'])
+        self.assertEqual(groups[1]['ids'], ['456', '789'])
+        self.assertEqual(groups[0]['sheetPrices'], [{'efectivo': 900, 'referencia': 1000}])
+        self.assertEqual(groups[0]['name'], 'Banner, con coma\ny salto')
+        self.assertEqual(sheet['cycles']['43'][0]['campaignConcept'], 'Otra')
+        single = parse_week_rows('W45', {'9': b'"","","","","123","","456 / 789"'})
+        self.assertEqual([g['ids'] for g in single['cycles']['9']], [['123'], ['456', '789']])
+        with self.assertRaises(ValueError):
+            parse_week_rows('W45', {'9': b'<html>Login</html>'})
+
     def test_local_route_download_and_access_error(self):
         spec = importlib.util.spec_from_file_location('server', 'servidor-mvp.py')
         server = importlib.util.module_from_spec(spec)
@@ -86,11 +131,17 @@ class SheetsTests(TestCase):
             def send_header(self, *args): pass
             def end_headers(self): pass
         output = Output()
-        with patch.object(server, 'urlopen', return_value=Response(workbook())) as request:
-            server.Handler.sheets(output, {'id': ['a' * 25]})
+        with patch.object(server, 'urlopen', side_effect=lambda *args, **kwargs: Response(b'"","","","",""\n"","","","","123"\n')) as request:
+            server.Handler.sheets(output, {'id': ['a' * 25], 'week': ['W45']})
             self.assertEqual(output.code, 200)
             self.assertEqual(json.loads(output.wfile.getvalue())['sheets'][0]['name'], 'W45')
-            self.assertTrue(request.call_args.args[0].full_url.endswith('/export?format=xlsx'))
+            self.assertEqual(request.call_count, 10)
+            self.assertTrue(all('/gviz/tq?' in call.args[0].full_url and 'sheet=W45' in call.args[0].full_url for call in request.call_args_list))
+        output.wfile = BytesIO()
+        with patch.object(server, 'urlopen') as request:
+            server.Handler.sheets(output, {'id': ['a' * 25], 'week': ['W53']})
+            request.assert_not_called()
+            self.assertEqual(output.code, 502)
         output.wfile = BytesIO()
         with patch.object(server, 'urlopen') as request:
             server.Handler.sheets(output, {'id': ['https://example.com']})
@@ -98,7 +149,7 @@ class SheetsTests(TestCase):
             self.assertEqual(output.code, 502)
         output.wfile = BytesIO()
         with patch.object(server, 'urlopen', side_effect=server.HTTPError('url', 403, 'Forbidden', {}, None)):
-            server.Handler.sheets(output, {'id': ['a' * 25]})
+            server.Handler.sheets(output, {'id': ['a' * 25], 'week': ['W45']})
             self.assertIn('HTTP 403', json.loads(output.wfile.getvalue())['error'])
 
 
