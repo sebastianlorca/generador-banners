@@ -539,6 +539,7 @@ endpointPrices:()=>lastScene?.products.map(p=>({efectivo:p.precio.efectivo,refer
 campaignConfig:entry=>({campaign:entry.meta.uuid,values:parseCampaign(JSON.stringify(entry))}),
 snapshot:()=>({campaign:campaignSelector.value,values:{...campaignValues},formats:selectedFormats(),exportFormat:$('exportFormat').value,ready:!!loadedCampaignId&&!campaignLoading&&!busy}),
 async run(config){
+if(!Array.from(campaignSelector.options).some(option=>option.value===config.campaign)){const option=document.createElement('option');option.value=config.campaign;option.textContent=config.campaign;campaignSelector.append(option)}
 campaignSelector.value=config.campaign;campaignValues={...config.values};loadedCampaignId=config.campaign;campaignLoading=false;
 slotIds.forEach((id,i)=>{$(id).value=config.ids[i]||''});updateVersion();
 for(const [key,id] of Object.entries(formatFields))$(id).checked=!!config.formats[key];

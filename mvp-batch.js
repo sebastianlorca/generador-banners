@@ -14,8 +14,22 @@ $('campaign-heading').querySelector('.step-number').textContent='02';
 $('products-heading').querySelector('.step-number').textContent='03';
 $('formats-heading').querySelector('.step-number').textContent='04';
 const settings=document.createElement('div');settings.className='batch-settings';settings.hidden=true;
-settings.innerHTML='<label>Enlace o ID de Google Sheets<input id="sheetSource" type="text" value="https://docs.google.com/spreadsheets/d/1ic5fOWwP3AqzgsIcJ70ySvrq0y0TPX-nB3-KZnfieeQ/edit"></label><label>Hoja semanal<select id="sheetWeek"></select></label><button id="loadSheets" type="button" class="secondary">Cargar / actualizar semana</button><label>Ciclo<select id="sheetCycle"><option value="9">Lunes a jueves · fila 9</option><option value="43">Viernes a domingo · fila 43</option></select></label><p id="sheetStatus" role="status" aria-live="polite"></p><div id="sheetSummary" class="batch-summary" hidden></div>';
+settings.innerHTML='<label>Enlace o ID de Google Sheets<input id="sheetSource" type="text" value="https://docs.google.com/spreadsheets/d/1xxzzhsE9uj1GIkzc03Mv0GtBmfSR9GTM6GTRExqLgAI/edit?gid=1697499896#gid=1697499896"></label><label>Hoja semanal<select id="sheetWeek"></select></label><button id="loadSheets" type="button" class="secondary">Cargar / actualizar semana</button><label>Ciclo<select id="sheetCycle"><option value="9">Lunes a jueves · fila 9</option><option value="43">Viernes a domingo · fila 43</option></select></label><p id="sheetStatus" role="status" aria-live="polite"></p><div id="sheetSummary" class="batch-summary" hidden></div>';
 section.append(settings);
+const googleControls=document.createElement('div');
+const googleStatus=document.createElement('p');googleStatus.setAttribute('role','status');
+for(const [action,label] of [['connect','Conectar con Google'],['disconnect','Desconectar Google']]){
+const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=label;
+button.addEventListener('click',async()=>{
+const buttons=googleControls.querySelectorAll('button');buttons.forEach(item=>item.disabled=true);
+googleStatus.textContent=action==='connect'?'Completa el inicio de sesión en la ventana de Google…':'Desconectando…';
+try{const response=await fetch('/api/google/'+action,{method:'POST',headers:{'X-Banners-Action':'google-auth'},signal:AbortSignal.timeout(200000)}),data=await response.json();if(!response.ok)throw Error(data.error);sheets=[];summarize();googleStatus.textContent=data.connected?'Google conectado. Carga la semana para leer con esta cuenta.':'Google desconectado de este equipo.'}
+catch(error){googleStatus.textContent=error.message}
+finally{buttons.forEach(item=>item.disabled=false)}
+});googleControls.append(button);
+}
+googleControls.append(googleStatus);settings.prepend(googleControls);
+fetch('/api/google/status',{cache:'no-store'}).then(response=>response.ok?response.json():null).then(data=>{if(data)googleStatus.textContent=data.connected?'Google conectado en este equipo.':'Conecta con Google para leer una planilla privada.'}).catch(()=>{});
 for(let week=1;week<=52;week++){const name='W'+String(week).padStart(2,'0');$('sheetWeek').add(new Option(name,name))}
 const results=document.createElement('div');results.id='individualResults';
 let node=$('form').nextSibling;

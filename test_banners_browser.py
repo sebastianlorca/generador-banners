@@ -15,6 +15,8 @@ const $=id=>document.getElementById(id),wait=async predicate=>{for(let i=0;i<300
 try{
 await wait(()=>window.bannerGenerator);
 assert(!bannerGenerator.snapshot().ready,'Inicio sin campaña individual');
+assert(bannerCampaigns.length===6&&$('selector-campana').options.length===7,'Listado dinámico con sexta campaña');
+assert([...$('selector-campana').options].some(option=>option.value==='11111111-2222-3333-4444-555555555555'&&option.textContent==='Nueva campaña'),'Campaña nueva sin cambios en HTML');
 $('generationMode').value='massive';$('generationMode').dispatchEvent(new Event('change'));
 assert($('selector-campana').disabled&&$('selector-campana').closest('section').hidden,'Campaña solo individual');
 assert($('sheetWeek').options.length===52&&!$('sheetWeek').disabled,'Semanas disponibles antes de cargar');
@@ -45,7 +47,7 @@ await wait(()=>previewLink?.href.startsWith('blob:'));
 const initialPreviewUrl=previewLink.href;
 assert(previewLink.target==='_blank'&&(await(await fetch(initialPreviewUrl)).blob()).type==='image/png','Vista previa Blob PNG con enlace nativo a nueva pestaña');
 assert(frames[0].contentWindow.bannerGenerator.snapshot().campaign==='40dd98db-cdc8-4d40-9950-a195bdbde8a5','Cruce por slug normalizado');
-assert(frames[1].contentWindow.bannerGenerator.snapshot().campaign==='ddd3ff5d-88dd-4ca7-86f6-959313238eea','Campana distinta por grupo mediante UUID');
+assert(frames[1].contentWindow.bannerGenerator.snapshot().campaign==='11111111-2222-3333-4444-555555555555','Campana distinta por grupo mediante UUID');
 assert(first.getElementById('formatDesk').checked&&!first.getElementById('formatMobile').checked,'Primer grupo solo Desk');
 assert(!second.getElementById('formatDesk').checked&&second.getElementById('formatMobile').checked,'Otro grupo solo Mobile');
 await wait(()=>tabs[0].getAttribute('aria-selected')==='true'&&getComputedStyle(tabs[0]).backgroundColor!==getComputedStyle(tabs[2]).backgroundColor);
@@ -135,14 +137,18 @@ class Handler(SimpleHTTPRequestHandler):
         request = urlsplit(self.path)
         params = parse_qs(request.query)
         mime = 'application/json'
-        if request.path.startswith('/api/campaigns/'):
+        if request.path == '/api/campaigns':
+            names = ['Banner Principal Web Desk (1 producto)', 'Banner Principal Web Desk (2 productos)', 'Banner Principal Web Desk (3 productos)', 'Banner Principal Web Mobile', 'Banner Stories', 'Pantalla FHD', 'Banner Mini Totem', 'Horizontal 5760', 'Horizontal 3840']
+            uuids = ['40dd98db-cdc8-4d40-9950-a195bdbde8a5', 'ddd3ff5d-88dd-4ca7-86f6-959313238eea', '0b5d9f6d-4a44-4a52-83c7-d8634799ca0d', 'f1bbd79b-c557-4f2f-80bd-8d101480f810', 'a1a77a6a-dc62-4fd9-983f-f1f8562d7a2f', '11111111-2222-3333-4444-555555555555']
+            content = json.dumps({'entries': [{'meta': {'uuid': uuid, 'slug': 'toma-tu-like' if i == 0 else 'nueva-campana' if i == 5 else uuid, 'name': 'Nueva campaña' if i == 5 else 'Campaña simulada'}, 'fields': {name: {'url': 'https://assets-v3.pcfactory.cl/uploads/fixture.svg'} for name in names}} for i, uuid in enumerate(uuids)]}).encode()
+        elif request.path.startswith('/api/campaigns/'):
             names = ['Banner Principal Web Desk (1 producto)', 'Banner Principal Web Desk (2 productos)', 'Banner Principal Web Desk (3 productos)', 'Banner Principal Web Mobile', 'Banner Stories', 'Pantalla FHD', 'Banner Mini Totem', 'Horizontal 5760', 'Horizontal 3840']
             content = json.dumps({'meta': {'uuid': request.path.rsplit('/', 1)[-1], 'slug': 'toma-tu-like' if request.path.endswith('40dd98db-cdc8-4d40-9950-a195bdbde8a5') else request.path.rsplit('/', 1)[-1], 'name': 'Campaña simulada'}, 'fields': {name: {'url': 'https://assets-v3.pcfactory.cl/uploads/fixture.svg'} for name in names}}).encode()
         elif request.path == '/api/products':
             ids = params.get('productsIds', [])
             content = json.dumps([{'id': int(i), 'nombre': 'Producto ' + i, 'familia': {'nombre': 'Familia'}, 'marca': {'nombre': 'Marca'}, 'precio': {'efectivo': 100, 'referencia': 200}, 'imagenes': {'0': {'250': 'https://assets.pcfactory.cl/public/foto/fixture.svg'}}} for i in ids if i != '999']).encode()
         elif request.path == '/api/sheets':
-            def group(ids): return {'cell': 'E9', 'campaignCell': 'E3', 'campaignConcept': 'ddd3ff5d-88dd-4ca7-86f6-959313238eea' if len(ids)==2 else '  Tóma tu LIKE  ', 'ids': ids, 'value': '-'.join(ids), 'error': '', 'sheetPrices': [{'efectivo': 619990, 'referencia': 1029990}, {'efectivo': 799990, 'referencia': 1189990}][:len(ids)] if len(ids) < 3 else None}
+            def group(ids): return {'cell': 'E9', 'campaignCell': 'E3', 'campaignConcept': 'nueva-campana' if len(ids)==2 else '  Tóma tu LIKE  ', 'ids': ids, 'value': '-'.join(ids), 'error': '', 'sheetPrices': [{'efectivo': 619990, 'referencia': 1029990}, {'efectivo': 799990, 'referencia': 1189990}][:len(ids)] if len(ids) < 3 else None}
             content = json.dumps({'sheets': [{'name': 'W45', 'cycles': {'9': [group(['1']), group(['999']), group(['1', '2']), group(['1', '2', '3'])], '43': [group(['2']), {**group(['1']), 'campaignConcept': '', 'campaignCell': 'F37'}]}}]}).encode()
         elif request.path == '/custom.svg':
             mime = 'image/svg+xml'
@@ -154,6 +160,7 @@ class Handler(SimpleHTTPRequestHandler):
             mime = 'text/html; charset=utf-8'
             content = (ROOT / 'mvp.html').read_text(encoding='utf-8')
             content = re.sub(r'<link[^>]+https://fonts[^>]+>', '', content)
+            content = content.replace('</select>', '<option value="obsolete">Cargando campaña 5...</option></select>', 1)
             if request.path == '/test.html': content = content.replace('</body>', TEST + '</body>')
             content = content.encode()
         elif request.path == '/mvp-local-generator.js':

@@ -1,6 +1,13 @@
 # Contexto: generador de banners e integración con Modyo
 
-Última actualización: 14 de noviembre de 2026.
+Última actualización: 16 de noviembre de 2026.
+
+## OAuth local para planillas privadas (16 de noviembre de 2026)
+
+- Se agregó `google_sheets_auth.py` y `requirements.txt`. Masivo tiene botones Conectar con Google y Desconectar Google. Cada usuario autoriza su cuenta con OAuth de escritorio y alcance Sheets de solo lectura. El JSON se busca fuera del proyecto (variable `BANNERS_GOOGLE_CLIENT`, carpeta de datos local o un único JSON de cliente en el Escritorio). No se copiaron credenciales al repositorio.
+- El token se guarda fuera de la carpeta web en `%LOCALAPPDATA%\PCFactoryBanners\google-token.json`. Desconectar elimina el token local, sin revocar el permiso en Google. Los POST de conexión requieren origen local y cabecera específica.
+- Con cuenta conectada, `/api/sheets` usa Sheets API `values:batchGet` para las diez filas semanales y mantiene el parser existente mediante CSV en memoria. Sin conexión mantiene el flujo público previo. No cambia Modyo.
+- Validado: JSON de escritorio encontrado sin mostrar secretos; dependencias instaladas; ocho pruebas de planilla, tres pruebas nuevas de conversión/autorización simulada, prueba de navegador Edge, sintaxis Python/JS correctas. Falta que el usuario complete el inicio de sesión real y pruebe la planilla privada. README actualizado con inicio, modos y OAuth.
 
 ## Estado consolidado para retomar (14 de noviembre de 2026)
 
@@ -8,6 +15,8 @@ Esta sección, actualizada con la confirmación del usuario del 14 de noviembre,
 
 ### Cambios realizados
 
+- Corrección de opciones antiguas en campañas (14 de noviembre): ante captura con «Cargando campaña 4/5», se verificó que los archivos en disco ya usaban listado dinámico y que Modyo devuelve cuatro entradas: Toma Tu Like - campaña, Asus Week, Destacado y Black. Se versionó el enlace a `mvp-local.js`, el servidor agrega `Cache-Control: no-store` a recursos estáticos y el cargador reemplaza todas las opciones previas por el listado recibido. Prueba de navegador correcta con una opción obsoleta inyectada, que se elimina al cargar. Reiniciar Python y recargar con Ctrl+F5 para activar los cambios; si persiste, comprobar que se abre el servidor de esta carpeta.
+- Campañas dinámicas (14 de noviembre): se eliminó la lista fija de cinco UUID del HTML y del servidor. `GET /api/campaigns` consulta todas las páginas del listado público de entradas de `banners-principales/campana` en Modyo, en español. `mvp-local.js` construye el selector y `window.bannerCampaigns` con esas entradas; Individual y Masivo usan el mismo catálogo dinámico. El proxy de detalle admite UUID válidos únicamente en ese origen fijo. Crear y publicar una entrada del mismo tipo permite verla al recargar la aplicación; no hay actualización en segundo plano ni descubrimiento de otros espacios/tipos. Reiniciar Python con `iniciar-mvp.cmd` y recargar con Ctrl+F5. Comprobaciones: endpoint real devolvió las cinco campañas actuales; navegador simulado pasó con una sexta campaña nueva en el selector y usada desde la planilla por Masivo; paginación comprobada con dos páginas simuladas; ocho pruebas de planilla correctas. Esta implementación reemplaza las referencias históricas a cinco campañas fijas.
 - Estilos del generador local (14 de noviembre): `mvp-modyo.css` se renombró a `mvp-local.css` y se actualizó el enlace de `mvp.html`. El contenido de los estilos se conserva; Individual y Masivo usan la nueva ruta. Prueba de navegador con servicios simulados y `git diff --check` correctos. Las campañas continúan dependiendo de los endpoints de Modyo. Recargar con Ctrl+F5.
 - Imagen personalizada mediante archivo adjunto (14 de noviembre): el generador local reemplaza el input de URL por un selector de archivos de imagen en Individual y Masivo. Adjuntar selecciona automáticamente la opción 11 y actualiza los formatos generados, conservando blancos y transparencia. Se puede alternar con el catálogo y reutilizar el archivo al regenerar el mismo producto; cambiar el ID limpia el adjunto. Si falta el archivo o no se puede decodificar, vuelve a la imagen 1. El archivo se procesa en el navegador, no se sube ni persiste tras recargar. Las URLs Blob de carga se liberan al terminar. Prueba Edge con servicios simulados y sintaxis JavaScript correctas, incluyendo adjunto, blancos, alternancia y archivo inválido. No se trasladó a Modyo. Esta sección reemplaza las instrucciones históricas de URL personalizada para el entorno local.
 - Títulos automáticos según el nombre (14 de noviembre): notebooks y desktop reconocen IdeaPad/Gamer, parlantes reconocen Portátil y monitores reconocen Gamer/Curvo. Se usa solo la primera característica reconocida según su posición en el nombre (gamer curvo → Monitor Gamer; curvo gamer → Monitor Curvo), sin repetirla si ya aparece en la familia. Sin coincidencias se conserva familia + marca. Implementado en `mvp-local-generator.js` para Individual y Masivo; conserva títulos editados al regenerar el mismo ID y la separación visual de marca. No se trasladó a Modyo. Validación: 14 casos de títulos, sintaxis JavaScript y prueba de navegador Edge con servicios simulados correctos. Recargar con Ctrl+F5; los productos ya cargados conservan su título, por lo que hay que recargar la página o cambiar el ID para obtener el nuevo automático.
@@ -47,7 +56,7 @@ Esta sección, actualizada con la confirmación del usuario del 14 de noviembre,
 ### Pendientes vigentes
 
 1. Trasladar expresamente las mejoras locales validadas a Modyo, incluidos los nuevos títulos automáticos y el selector de archivos para imagen personalizada, y verificar CORS, campañas, imágenes, Canvas y exportación en el CMS (antiguo punto 4). Los SVG están embebidos localmente; no existen nuevos campos de portaprecio en las entradas.
-2. Si se requieren campañas adicionales, ampliar las cinco entradas configuradas o implementar un listado dinámico. Mini Tótem aún no tiene asignación de uno de los nuevos SVG (antiguo punto 5).
+2. Mini Tótem aún no tiene asignación de uno de los nuevos SVG (parte del antiguo punto 5). El listado dinámico de campañas ya está implementado; falta que el usuario compruebe una nueva entrada publicada en Modyo.
 
 Ya no son pendientes locales: reducir ®, separar fondos y portaprecios con los SVG acordados, campaña por banner desde planilla, elegir semana antes de cargar, la corrección del botón Generar en Masivo, las reglas de títulos automáticos y reemplazar la URL personalizada por archivo adjunto.
 
