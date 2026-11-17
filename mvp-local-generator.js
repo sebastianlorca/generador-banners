@@ -195,13 +195,21 @@ width+=context.measureText(part).width;
 context.font=font;return width;
 }
 function fitText(text,x,y,maxWidth,size,min,color,weight='700'){ctx.fillStyle=color;while(size>min){ctx.font=weight+' '+size+'px Ubuntu';if(brandText(ctx,text)<=maxWidth)break;size--}ctx.font=weight+' '+size+'px Ubuntu';while(brandText(ctx,text)>maxWidth&&text.length>1)text=text.slice(0,-2)+'…';brandText(ctx,text,x,y)}
+function drawOfferPrice(context,value,x,y,maxWidth,size,min,symbolScale=.65){
+const amount=money(value).slice(1);
+const measure=()=>{context.font='700 '+size+'px Ubuntu';const amountWidth=context.measureText(amount).width;context.font='700 '+size*symbolScale+'px Ubuntu';return context.measureText('$').width+size*.06+amountWidth};
+while(size>min&&measure()>maxWidth)size--;
+context.fillStyle=textColor('price','#fff');context.font='700 '+size*symbolScale+'px Ubuntu';
+context.fillText('$',x,y-size*.12);const amountX=x+context.measureText('$').width+size*.06;
+context.font='700 '+size+'px Ubuntu';context.fillText(amount,amountX,y);
+}
 function drawProductName(name,x,priceY){
 const width=300;let lines=[];let size=16;
 for(;size>=10;size--){ctx.font='400 '+size+'px Ubuntu';lines=[];let line='';for(const word of String(name||'').split(/\s+/)){const candidate=line?line+' '+word:word;if(line&&ctx.measureText(candidate).width>width){lines.push(line);line=word}else{line=candidate}}if(line)lines.push(line);if(lines.length<=2)break}
-ctx.fillStyle=textColor('name','#414749');ctx.font='400 '+Math.max(10,size)+'px Ubuntu';lines.forEach((line,index)=>ctx.fillText(line,x+20,priceY-26+index*17));
+ctx.fillStyle=textColor('name','#414749');ctx.font='400 '+Math.max(10,size)+'px Ubuntu';const textOffset=lines.length===1?17:0;lines.forEach((line,index)=>ctx.fillText(line,x+20,priceY-26+textOffset+index*17));return textOffset;
 }
-function product(p,img,x,priceY,zoom=100,offsetX=0,offsetY=0){const imageBottom=priceY-55;const imageTop=105;const imageHeight=imageBottom-imageTop;const baseScale=Math.min(285/img.width,imageHeight/img.height);const scale=baseScale*zoom/100;const originalCenter=imageTop+imageHeight/2;const imageY=Math.min(originalCenter-img.height*scale/2,imageBottom-img.height*scale);ctx.drawImage(img,x+155-img.width*scale/2+offsetX,imageY+offsetY,img.width*scale,img.height*scale);const title=p.bannerTitle??automaticProductTitle(p);fitText(title,x+20,priceY-47,300,22,16,textColor('title','#414749'));drawProductName(p.nombre,x,priceY);
-drawPricePlate(ctx,'horizontal',x,priceY,308,71,p.precio.descuento>0);fitText(money(p.precio.efectivo),x+9,priceY+46,175,36,24,textColor('price','#fff'));if(Number.isFinite(p.precio.referencia))fitText('Referencial: '+money(p.precio.referencia),x+13,priceY+65,175,12,10,textColor('price','#fff'),'400');const discount=p.precio.descuento;if(Number.isFinite(discount)&&discount>0)fitText('-'+Math.round(discount)+'%',x+191,priceY+53,111,48,28,textColor('discount','#104d32'));}
+function product(p,img,x,priceY,zoom=100,offsetX=0,offsetY=0){const imageBottom=priceY-55;const imageTop=105;const imageHeight=imageBottom-imageTop;const baseScale=Math.min(285/img.width,imageHeight/img.height);const scale=baseScale*zoom/100;const originalCenter=imageTop+imageHeight/2;const imageY=Math.min(originalCenter-img.height*scale/2,imageBottom-img.height*scale);ctx.drawImage(img,x+155-img.width*scale/2+offsetX,imageY+offsetY,img.width*scale,img.height*scale);const title=p.bannerTitle??automaticProductTitle(p);const textOffset=drawProductName(p.nombre,x,priceY);fitText(title,x+20,priceY-47+textOffset,300,22,16,textColor('title','#414749'));
+drawPricePlate(ctx,'horizontal',x,priceY,308,71,p.precio.descuento>0);drawOfferPrice(ctx,p.precio.efectivo,x+9,priceY+46,162,36,24);if(Number.isFinite(p.precio.referencia))fitText('Referencial: '+money(p.precio.referencia),x+13,priceY+65,175,12,10,textColor('price','#fff'),'400');const discount=p.precio.descuento;if(Number.isFinite(discount)&&discount>0)fitText('-'+Math.round(discount)+'%',x+191,priceY+53,111,48,28,textColor('discount','#104d32'));}
 function singleProduct(p,img,zoom,offsetX,offsetY){
 const scale=Math.min(390/img.width,270/img.height)*zoom/100;
 ctx.drawImage(img,1300-img.width*scale/2+offsetX,250-img.height*scale/2+offsetY,img.width*scale,img.height*scale);
@@ -209,7 +217,7 @@ fitText(registeredBrand(p),790,180,305,32,20,textColor('title','#414749'));
 fitText(titleWithoutBrand(p),790,221,305,28,18,textColor('title','#414749'));
 fitText(p.nombre,790,249,305,20,12,textColor('name','#414749'),'400');
 drawPricePlate(ctx,'vertical',790,261,275,68,p.precio.descuento>0);
-fitText(money(p.precio.efectivo),800,315,255,50,28,textColor('price','#fff'));
+drawOfferPrice(ctx,p.precio.efectivo,800,315,255,50,28,.55);
 if(Number.isFinite(p.precio.referencia))fitText('Referencial: '+money(p.precio.referencia),790,355,164,15,10,textColor('price','#414749'),'400');
 
 if(Number.isFinite(p.precio.descuento)&&p.precio.descuento>0)fitText('-'+Math.round(p.precio.descuento)+'%',974,353,70,32,22,textColor('discount','#104d32'));
@@ -277,13 +285,13 @@ const c=output.getContext('2d');c.drawImage(scene.mobileBg,0,0,556,416);
 const control=controlNames[scene.slots[i].index],img=scene.renderedImages[i];
 const zoom=Number($('mobileZoom'+control).value)/100,x=Number($('mobileX'+control).value),y=Number($('mobileY'+control).value);
 const scale=Math.min(220/img.width,155/img.height)*zoom;
-c.save();c.beginPath();c.rect(275,160,235,190);c.clip();c.drawImage(img,398-img.width*scale/2+x,260-img.height*scale/2+y,img.width*scale,img.height*scale);c.restore();
+c.drawImage(img,398-img.width*scale/2+x,260-img.height*scale/2+y,img.width*scale,img.height*scale);
 // Mobile separates brand and title, keeping automatic titles free of duplicate brands.
 mobileText(c,registeredBrand(p),54,201,210,23,16,textColor('title','#414749'));
 mobileText(c,titleWithoutBrand(p),54,230,210,22,14,textColor('title','#414749'));
 mobileText(c,p.nombre,54,250,210,16,12,textColor('name','#414749'),'400');
 drawPricePlate(c,'vertical',52,258,210,52,p.precio.descuento>0);
-mobileText(c,money(p.precio.efectivo),59,298,196,40,22,textColor('price','#fff'));
+drawOfferPrice(c,p.precio.efectivo,59,298,196,40,22,.55);
 // Only draw the discount badge for a positive discount.
 if(p.precio.descuento>0){
 
@@ -307,12 +315,12 @@ const output=existing?card.querySelector('canvas'):document.createElement('canva
 const c=output.getContext('2d');c.drawImage(scene.storyBg,0,0,1080,1920);
 const img=scene.renderedImages[i],zoom=Number($('storyZoom'+control).value)/100,x=Number($('storyX'+control).value),y=Number($('storyY'+control).value);
 const scale=Math.min(670/img.width,520/img.height)*zoom;
-c.save();c.beginPath();c.rect(145,690,790,625);c.clip();c.drawImage(img,540-img.width*scale/2+x,1020-img.height*scale/2+y,img.width*scale,img.height*scale);c.restore();
+c.drawImage(img,540-img.width*scale/2+x,1020-img.height*scale/2+y,img.width*scale,img.height*scale);
 mobileText(c,p.bannerTitle,218,1370,680,52,30,textColor('title','#414749'));
 mobileText(c,p.nombre,218,1420,680,38,22,textColor('name','#414749'),'400');
 const discounted=p.precio.descuento>0;
 drawPricePlate(c,'horizontal',168,1446,745,172,discounted);
-mobileText(c,money(p.precio.efectivo),186,1560,400,90,42,textColor('price','#fff'));
+drawOfferPrice(c,p.precio.efectivo,186,1560,390,90,42);
 if(p.precio.referencia>p.precio.efectivo)mobileText(c,'Referencial: '+money(p.precio.referencia),211,1600,390,30,20,textColor('price','#fff'),'400');
 if(discounted)mobileText(c,'-'+p.precio.descuento+'%',630,1570,260,112,60,textColor('discount','#104d32'));
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'banner-storie-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('storyControls'+index),button)}
@@ -330,12 +338,12 @@ const output=existing?card.querySelector('canvas'):document.createElement('canva
 const c=output.getContext('2d');c.drawImage(scene.fhdBg,0,0,1920,1080);
 const img=scene.renderedImages[i],zoom=Number($('fhdZoom'+control).value)/100,x=Number($('fhdX'+control).value),y=Number($('fhdY'+control).value);
 const scale=Math.min(740/img.width,490/img.height)*zoom;
-c.save();c.beginPath();c.rect(950,380,930,650);c.clip();c.drawImage(img,1395-img.width*scale/2+x,720-img.height*scale/2+y,img.width*scale,img.height*scale);c.restore();
+c.drawImage(img,1395-img.width*scale/2+x,720-img.height*scale/2+y,img.width*scale,img.height*scale);
 mobileText(c,registeredBrand(p),180,540,600,72,40,textColor('title','#414749'));
 mobileText(c,titleWithoutBrand(p),176,630,640,64,36,textColor('title','#414749'));
 mobileText(c,p.nombre,176,690,640,46,26,textColor('name','#414749'),'400');
 drawPricePlate(c,'vertical',174,722,602,150,p.precio.descuento>0);
-mobileText(c,money(p.precio.efectivo),194,840,558,120,60,textColor('price','#fff'));
+drawOfferPrice(c,p.precio.efectivo,194,840,558,120,60,.55);
 if(p.precio.referencia>p.precio.efectivo){
 const value=money(p.precio.referencia);c.font='700 46px Ubuntu';const width=Math.min(c.measureText(value).width,280);
 mobileText(c,value,260,918,280,46,26,textColor('price','#414749'));c.strokeStyle=textColor('price','#414749');c.lineWidth=3;c.beginPath();c.moveTo(250,901);c.lineTo(270+width,901);c.stroke();
@@ -356,14 +364,14 @@ const output=existing?card.querySelector('canvas'):document.createElement('canva
 const c=output.getContext('2d');c.drawImage(scene.miniBg,0,0,800,1280);
 const img=scene.renderedImages[i],zoom=Number($('miniZoom'+control).value)/100,x=Number($('miniX'+control).value),y=Number($('miniY'+control).value);
 const scale=Math.min(530/img.width,380/img.height)*zoom;
-c.save();c.beginPath();c.rect(90,450,620,450);c.clip();c.drawImage(img,400-img.width*scale/2+x,710-img.height*scale/2+y,img.width*scale,img.height*scale);c.restore();
+c.drawImage(img,400-img.width*scale/2+x,710-img.height*scale/2+y,img.width*scale,img.height*scale);
 mobileText(c,p.bannerTitle,150,975,530,40,24,textColor('title','#414749'));
 mobileText(c,p.nombre,150,1013,530,30,18,textColor('name','#414749'),'400');
 // Cover the template price and badge before drawing the edited values.
 c.fillStyle='#414749';c.beginPath();c.roundRect(110,1021,581,144,28);c.fill();
 const discounted=p.precio.descuento>0;
 if(discounted){c.save();c.beginPath();c.roundRect(110,1021,581,144,28);c.clip();c.fillStyle='#8ce5b0';c.beginPath();c.moveTo(535,1021);c.lineTo(691,1021);c.lineTo(691,1165);c.lineTo(484,1165);c.lineTo(449,1058);c.quadraticCurveTo(442,1043,457,1038);c.closePath();c.fill();c.restore()}
-mobileText(c,money(p.precio.efectivo),125,1122,discounted?315:545,72,36,textColor('price','#fff'));
+drawOfferPrice(c,p.precio.efectivo,125,1122,discounted?315:545,72,36);
 if(p.precio.referencia>p.precio.efectivo)mobileText(c,'Referencial: '+money(p.precio.referencia),143,1153,310,24,16,textColor('price','#fff'),'400');
 if(discounted)mobileText(c,'-'+p.precio.descuento+'%',472,1130,202,86,44,textColor('discount','#104d32'));
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'banner-mini-totem-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('miniControls'+index),button)}
@@ -381,12 +389,12 @@ const output=existing?card.querySelector('canvas'):document.createElement('canva
 const c=output.getContext('2d');c.drawImage(scene.horizontalBg,0,0,5760,1080);
 const img=scene.renderedImages[i],zoom=Number($('horizontalZoom'+control).value)/100,x=Number($('horizontalX'+control).value),y=Number($('horizontalY'+control).value);
 const scale=Math.min(910/img.width,560/img.height)*zoom;
-c.save();c.beginPath();c.rect(4000,200,1400,650);c.clip();c.drawImage(img,4640-img.width*scale/2+x,525-img.height*scale/2+y,img.width*scale,img.height*scale);c.restore();
+c.drawImage(img,4640-img.width*scale/2+x,525-img.height*scale/2+y,img.width*scale,img.height*scale);
 mobileText(c,p.bannerTitle,2430,390,1030,72,42,textColor('title','#414749'));
 mobileText(c,p.nombre,2430,458,1030,54,32,textColor('name','#414749'),'400');
 const discounted=p.precio.descuento>0;
 drawPricePlate(c,'horizontal',2355,490,1050,244,discounted);
-mobileText(c,money(p.precio.efectivo),2382,656,565,126,64,textColor('price','#fff'));
+drawOfferPrice(c,p.precio.efectivo,2382,656,535,126,64);
 if(p.precio.referencia>p.precio.efectivo)mobileText(c,'Referencial: '+money(p.precio.referencia),2415,714,550,42,28,textColor('price','#fff'),'400');
 if(discounted)mobileText(c,'-'+p.precio.descuento+'%',3010,669,365,164,84,textColor('discount','#104d32'));
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'pantalla-horizontal-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('horizontalControls'+index),button)}
@@ -404,12 +412,12 @@ const output=existing?card.querySelector('canvas'):document.createElement('canva
 const c=output.getContext('2d');c.drawImage(scene.horizontal3840Bg,0,0,3840,1080);
 const img=scene.renderedImages[i],zoom=Number($('horizontal3840Zoom'+control).value)/100,x=Number($('horizontal3840X'+control).value),y=Number($('horizontal3840Y'+control).value);
 const scale=Math.min(750/img.width,470/img.height)*zoom;
-c.save();c.beginPath();c.rect(2800,220,850,600);c.clip();c.drawImage(img,3260-img.width*scale/2+x,515-img.height*scale/2+y,img.width*scale,img.height*scale);c.restore();
+c.drawImage(img,3260-img.width*scale/2+x,515-img.height*scale/2+y,img.width*scale,img.height*scale);
 mobileText(c,registeredBrand(p),2080,360,610,70,40,textColor('title','#414749'));
 mobileText(c,titleWithoutBrand(p),2080,452,610,64,36,textColor('title','#414749'));
 mobileText(c,p.nombre,2080,510,610,46,26,textColor('name','#414749'),'400');
 drawPricePlate(c,'vertical',2075,535,620,155,p.precio.descuento>0);
-mobileText(c,money(p.precio.efectivo),2098,660,575,120,60,textColor('price','#fff'));
+drawOfferPrice(c,p.precio.efectivo,2098,660,575,120,60,.55);
 if(p.precio.referencia>p.precio.efectivo){const value=money(p.precio.referencia);c.font='700 46px Ubuntu';const width=Math.min(c.measureText(value).width,280);mobileText(c,value,2155,735,280,46,26,textColor('price','#414749'));c.strokeStyle=textColor('price','#414749');c.lineWidth=3;c.beginPath();c.moveTo(2145,718);c.lineTo(2165+width,718);c.stroke()}
 if(p.precio.descuento>0){mobileText(c,'-'+p.precio.descuento+'%',2480,746,165,70,40,textColor('discount','#104d32'))}
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'horizontal-3840-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('horizontal3840Controls'+index),button)}

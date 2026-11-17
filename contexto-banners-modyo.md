@@ -2,12 +2,39 @@
 
 Última actualización: 16 de noviembre de 2026.
 
+## Ajuste adicional de $ vertical y hover de botones (16 de noviembre de 2026)
+
+- Principal simple, Mobile, FHD y Horizontal 3840 reducen ahora el $ al 55 % del monto; los demás conservan el 65 %. Se corrigió el contraste del hover: botones principales con texto blanco sobre verde oscuro y secundarios con texto oscuro sobre verde claro. Cambios locales para Individual y Masivo; no modifica Modyo. Recargar con Ctrl+F5.
+
+## Signo peso reducido en todos los precios de oferta (16 de noviembre de 2026)
+
+- Se extendió el signo $ al 65 % y ligeramente elevado a Principal simple, Mobile, FHD, Horizontal 3840 y Mini Tótem. Todos los formatos locales comparten ahora el mismo dibujo del precio de oferta, con ajuste conjunto de símbolo y monto al ancho disponible. Aplica a Individual y Masivo; los referenciales mantienen su estilo. No modifica el widget Modyo. Recargar con Ctrl+F5 y generar nuevamente.
+
+## Precio con signo peso reducido en portaprecios horizontales (16 de noviembre de 2026)
+
+- Principal doble/triple, Storie y Horizontal 5760 locales dibujan el signo $ al 65 % del tamaño del monto y ligeramente elevado. Se redujo el ancho disponible del precio para aumentar su separación respecto al verde del descuento, midiendo símbolo y monto juntos para ajustar el tamaño. Aplica a Individual y Masivo; no modifica el widget Modyo ni los precios referenciales. Recargar con Ctrl+F5 y generar nuevamente.
+
+## Imágenes sin recorte interno al ajustar zoom (16 de noviembre de 2026)
+
+- Se eliminaron los rectángulos de recorte de las fotos en Mobile, Storie, FHD, Mini Tótem y ambos horizontales del generador local. Zoom y desplazamientos permiten que el producto sobresalga de su área inicial; el borde exterior del banner sigue delimitando la exportación. Aplica a Individual y Masivo. No modifica el widget Modyo. Recargar con Ctrl+F5 y generar nuevamente.
+
+## Texto junto al portaprecio en Principal doble/triple (16 de noviembre de 2026)
+
+- En el generador local, cuando el nombre del producto ocupa una sola línea, el título y el nombre bajan 17 px para ocupar el espacio antes reservado a la segunda línea y acercarse al portaprecio. Los nombres de dos líneas mantienen su posición. Aplica a Individual y Masivo; no modifica el widget Modyo ni las posiciones de imágenes y portaprecios. Recargar con Ctrl+F5 y generar nuevamente.
+
+## Pendientes completados (confirmación del usuario, 16 de noviembre de 2026)
+
+- Se comprobó que una nueva campaña publicada en Modyo aparece al recargar el generador local.
+- Se completó el guardado y envío en Git de los cambios recientes, incluidos títulos automáticos, archivos adjuntos y actualizaciones posteriores. No se registran aquí hashes ni detalles del envío. Esta confirmación prevalece sobre las referencias históricas a cambios sin commit/push; no implica publicación del widget en Modyo.
+- El usuario confirmó el 16 de noviembre que el inicio de sesión real con Google está comprobado y funciona correctamente. Ya no es un pendiente. La lectura de una planilla privada no se confirmó por separado.
+- Siguen pendientes la comprobación de lectura de una planilla privada, el traslado de las mejoras locales al widget Modyo y la asignación del nuevo portaprecio SVG a Mini Tótem.
+
 ## OAuth local para planillas privadas (16 de noviembre de 2026)
 
 - Se agregó `google_sheets_auth.py` y `requirements.txt`. Masivo tiene botones Conectar con Google y Desconectar Google. Cada usuario autoriza su cuenta con OAuth de escritorio y alcance Sheets de solo lectura. El JSON se busca fuera del proyecto (variable `BANNERS_GOOGLE_CLIENT`, carpeta de datos local o un único JSON de cliente en el Escritorio). No se copiaron credenciales al repositorio.
 - El token se guarda fuera de la carpeta web en `%LOCALAPPDATA%\PCFactoryBanners\google-token.json`. Desconectar elimina el token local, sin revocar el permiso en Google. Los POST de conexión requieren origen local y cabecera específica.
 - Con cuenta conectada, `/api/sheets` usa Sheets API `values:batchGet` para las diez filas semanales y mantiene el parser existente mediante CSV en memoria. Sin conexión mantiene el flujo público previo. No cambia Modyo.
-- Validado: JSON de escritorio encontrado sin mostrar secretos; dependencias instaladas; ocho pruebas de planilla, tres pruebas nuevas de conversión/autorización simulada, prueba de navegador Edge, sintaxis Python/JS correctas. Falta que el usuario complete el inicio de sesión real y pruebe la planilla privada. README actualizado con inicio, modos y OAuth.
+- Validado: JSON de escritorio encontrado sin mostrar secretos; dependencias instaladas; ocho pruebas de planilla, tres pruebas nuevas de conversión/autorización simulada, prueba de navegador Edge, sintaxis Python/JS correctas. El usuario confirmó el 16 de noviembre que el inicio de sesión real con Google funciona correctamente. Queda pendiente confirmar por separado la lectura de una planilla privada. README actualizado con inicio, modos y OAuth.
 
 ## Estado consolidado para retomar (14 de noviembre de 2026)
 
@@ -45,7 +72,7 @@ Esta sección, actualizada con la confirmación del usuario del 14 de noviembre,
 - Comprobación automatizada registrada después del cambio de Horizontal 3840: pasó `python test_banners_browser.py` en Edge con servicios simulados, `node --check mvp-local-generator.js` y `git diff --check`. Las ocho pruebas de planilla pasaron durante el cambio de carga por semana. Se verificaron Blob PNG/WebP y píxeles de los SVG. El 14 de noviembre el usuario confirmó como completadas la revisión visual con recursos reales y la comprobación de ambos ciclos completos (antiguos pendientes 1 y 2).
 - Archivos de esta serie de cambios: `mvp-local-generator.js`, `mvp-batch.js`, `mvp-batch.css`, `mvp.html`, `mvp-local.js`, `servidor-mvp.py`, `planilla_banners.py`, ambas pruebas y este contexto. `ejemplos de banners/` contiene las referencias del usuario.
 - Para aplicar los últimos cambios visuales: Ctrl+F5 y generar otra vez. Si todavía corre el servidor anterior al cambio de carga por semana, cerrar Python y ejecutar `iniciar-mvp.cmd` antes de recargar. Cambiar semana limpia el lote y requiere cargarla de nuevo.
-- El 14 de noviembre el usuario confirmó como completado el guardado y envío de los cambios en Git (antiguo pendiente 6). No se registraron aquí hashes ni detalles del envío. Esa confirmación es anterior a las mejoras de títulos automáticos y archivos adjuntos: no se hizo commit ni push de esas mejoras ni de las actualizaciones posteriores del contexto en esta conversación. No se modificaron los archivos del widget Modyo ni se publicó un despliegue.
+- El 14 de noviembre el usuario confirmó como completado el guardado y envío de los cambios en Git (antiguo pendiente 6). El 16 de noviembre confirmó también el guardado y envío de los cambios recientes, incluidos títulos automáticos, archivos adjuntos y actualizaciones posteriores. No se registraron aquí hashes ni detalles del envío. No se modificaron los archivos del widget Modyo ni se publicó un despliegue.
 
 ### Pendientes completados (confirmación del usuario, 14 de noviembre de 2026)
 
@@ -56,7 +83,7 @@ Esta sección, actualizada con la confirmación del usuario del 14 de noviembre,
 ### Pendientes vigentes
 
 1. Trasladar expresamente las mejoras locales validadas a Modyo, incluidos los nuevos títulos automáticos y el selector de archivos para imagen personalizada, y verificar CORS, campañas, imágenes, Canvas y exportación en el CMS (antiguo punto 4). Los SVG están embebidos localmente; no existen nuevos campos de portaprecio en las entradas.
-2. Mini Tótem aún no tiene asignación de uno de los nuevos SVG (parte del antiguo punto 5). El listado dinámico de campañas ya está implementado; falta que el usuario compruebe una nueva entrada publicada en Modyo.
+2. Mini Tótem aún no tiene asignación de uno de los nuevos SVG (parte del antiguo punto 5). El listado dinámico de campañas ya está implementado y el usuario confirmó el 16 de noviembre que una nueva entrada publicada en Modyo aparece al recargar.
 
 Ya no son pendientes locales: reducir ®, separar fondos y portaprecios con los SVG acordados, campaña por banner desde planilla, elegir semana antes de cargar, la corrección del botón Generar en Masivo, las reglas de títulos automáticos y reemplazar la URL personalizada por archivo adjunto.
 

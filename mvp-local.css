@@ -36,7 +36,7 @@
 #pcf-banner-mvp .export-choice{width:240px;max-width:100%}
 #pcf-banner-mvp .generate-footer .actions{margin:0}
 #pcf-banner-mvp button{background:var(--studio-green);border:1px solid transparent;border-radius:10px;min-height:46px;padding:12px 20px;box-shadow:none;transition:background .15s,transform .15s;font-size:14px}
-#pcf-banner-mvp button:hover:not(:disabled){background:#05613a;transform:translateY(-1px)}
+#pcf-banner-mvp button:hover:not(:disabled){background:#05613a;color:#fff;transform:translateY(-1px)}
 #pcf-banner-mvp #generate{min-width:220px;display:flex;justify-content:space-between;gap:28px}
 #pcf-banner-mvp button.secondary{background:#f0f6f2;border-color:#d8e6dd;color:#246044}
 #pcf-banner-mvp button:disabled{opacity:.5;cursor:not-allowed}
@@ -57,3 +57,5 @@
 @media(max-width:1000px){#pcf-banner-mvp .format-options{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){#pcf-banner-mvp .generator-header{align-items:start;flex-direction:column;gap:16px}#pcf-banner-mvp .config-intro,#pcf-banner-mvp .config-section{padding:22px 20px}#pcf-banner-mvp .product-fields{grid-template-columns:1fr}#pcf-banner-mvp .format-options{grid-template-columns:repeat(2,minmax(0,1fr))}#pcf-banner-mvp .generate-footer{padding:22px 20px 16px;flex-direction:column;align-items:stretch;gap:16px}#pcf-banner-mvp .export-choice{width:100%}#pcf-banner-mvp #generate{width:100%}#pcf-banner-mvp .generate-footer .actions{display:block}#pcf-banner-mvp #status{margin:0 20px 22px}#pcf-banner-mvp details.preview{padding:18px 16px}#pcf-banner-mvp .preview-heading span{display:block;margin:6px 0 0 18px}}
 @media(prefers-reduced-motion:reduce){#pcf-banner-mvp input,#pcf-banner-mvp select,#pcf-banner-mvp button{transition:none}#pcf-banner-mvp button:hover:not(:disabled){transform:none}}
+
+#pcf-banner-mvp button.secondary:hover:not(:disabled){background:#dcece2;border-color:#a9cdb7;color:#193e32}
