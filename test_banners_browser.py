@@ -25,7 +25,7 @@ assert($('sheetSummary').children.length===4,'Resumen');
 assert($('sheetStatus').textContent.includes('4 banners · 4 listos · 0 por revisar'),'Conteo inicial de tarjetas');
 assert($('sheetSummary').firstElementChild.querySelector('.batch-card-title').textContent&&$('sheetSummary').firstElementChild.dataset.state==='ready','Tarjeta con nombre y estado');
 for(const input of document.querySelectorAll('.format-options input')){
-if(!['formatDesk','formatMobile'].includes(input.id))input.click();
+if(input.checked&&!['formatDesk','formatMobile'].includes(input.id))input.click();
 }
 const groupRows=$('sheetSummary').children;
 const groupFormat=(index,key)=>groupRows[index].querySelector('[data-format="'+key+'"]');

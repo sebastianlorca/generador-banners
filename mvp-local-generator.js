@@ -209,7 +209,7 @@ for(;size>=10;size--){ctx.font='400 '+size+'px Ubuntu';lines=[];let line='';for(
 ctx.fillStyle=textColor('name','#414749');ctx.font='400 '+Math.max(10,size)+'px Ubuntu';const textOffset=lines.length===1?17:0;lines.forEach((line,index)=>ctx.fillText(line,x+20,priceY-26+textOffset+index*17));return textOffset;
 }
 function product(p,img,x,priceY,zoom=100,offsetX=0,offsetY=0){const imageBottom=priceY-55;const imageTop=105;const imageHeight=imageBottom-imageTop;const baseScale=Math.min(285/img.width,imageHeight/img.height);const scale=baseScale*zoom/100;const originalCenter=imageTop+imageHeight/2;const imageY=Math.min(originalCenter-img.height*scale/2,imageBottom-img.height*scale);ctx.drawImage(img,x+155-img.width*scale/2+offsetX,imageY+offsetY,img.width*scale,img.height*scale);const title=p.bannerTitle??automaticProductTitle(p);const textOffset=drawProductName(p.nombre,x,priceY);fitText(title,x+20,priceY-47+textOffset,300,22,16,textColor('title','#414749'));
-drawPricePlate(ctx,'horizontal',x,priceY,308,71,p.precio.descuento>0);drawOfferPrice(ctx,p.precio.efectivo,x+9,priceY+46,162,36,24);if(Number.isFinite(p.precio.referencia))fitText('Referencial: '+money(p.precio.referencia),x+13,priceY+65,175,12,10,textColor('price','#fff'),'400');const discount=p.precio.descuento;if(Number.isFinite(discount)&&discount>0)fitText('-'+Math.round(discount)+'%',x+191,priceY+53,111,48,28,textColor('discount','#104d32'));}
+drawPricePlate(ctx,'horizontal',x,priceY,308,71,p.precio.descuento>0);drawOfferPrice(ctx,p.precio.efectivo,x+9,priceY+46,162,36,24);if(Number.isFinite(p.precio.referencia))fitText('Referencial: '+money(p.precio.referencia),x+13,priceY+65,175,12,10,textColor('price','#fff'),'400');const discount=p.precio.descuento;if(Number.isFinite(discount)&&discount>0)fitText('-'+Math.round(discount)+'%',x+197,priceY+53,111,48,28,textColor('discount','#104d32'));}
 function singleProduct(p,img,zoom,offsetX,offsetY){
 const scale=Math.min(390/img.width,270/img.height)*zoom/100;
 ctx.drawImage(img,1300-img.width*scale/2+offsetX,250-img.height*scale/2+offsetY,img.width*scale,img.height*scale);
@@ -220,7 +220,7 @@ drawPricePlate(ctx,'vertical',790,261,275,68,p.precio.descuento>0);
 drawOfferPrice(ctx,p.precio.efectivo,800,315,255,50,28,.55);
 if(Number.isFinite(p.precio.referencia))fitText('Referencial: '+money(p.precio.referencia),790,355,164,15,10,textColor('price','#414749'),'400');
 
-if(Number.isFinite(p.precio.descuento)&&p.precio.descuento>0)fitText('-'+Math.round(p.precio.descuento)+'%',974,353,70,32,22,textColor('discount','#104d32'));
+if(Number.isFinite(p.precio.descuento)&&p.precio.descuento>0)fitText('-'+Math.round(p.precio.descuento)+'%',983,353,70,32,22,textColor('discount','#104d32'));
 }
 function calculatedDiscount(price,reference){return reference>0&&reference>price?Math.max(0,Math.min(100,Math.round((reference-price)/reference*100))):0}
 function populateEditors(products,slots){products.forEach((p,i)=>{const index=slots[i].index,control=controlNames[index];if(editorProductIds[index]!==slots[i].id){$('title'+control).value=automaticProductTitle(p);$('name'+control).value=p.nombre||'';$('price'+control).value=p.precio.efectivo;$('reference'+control).value=Number.isFinite(p.precio.referencia)?p.precio.referencia:p.precio.efectivo;editorProductIds[index]=slots[i].id}for(const field of ['title','name','price','reference'])$(field+control).disabled=false;$('image'+control).disabled=false;$('customImage'+control).disabled=false})}
@@ -295,7 +295,7 @@ drawOfferPrice(c,p.precio.efectivo,59,298,196,40,22,.55);
 // Only draw the discount badge for a positive discount.
 if(p.precio.descuento>0){
 
-mobileText(c,'-'+p.precio.descuento+'%',185,329,51,24,17,textColor('discount','#104d32'));
+mobileText(c,'-'+p.precio.descuento+'%',191,329,51,24,17,textColor('discount','#104d32'));
 }
 if(p.precio.referencia>p.precio.efectivo){c.font='700 15px Ubuntu';c.fillStyle=textColor('price','#414749');const value=money(p.precio.referencia);const width=c.measureText(value).width;c.fillText(value,84,326);c.strokeStyle=textColor('price','#414749');c.lineWidth=1;c.beginPath();c.moveTo(83,321);c.lineTo(85+width,321);c.stroke()}
 if(!existing){
@@ -322,7 +322,7 @@ const discounted=p.precio.descuento>0;
 drawPricePlate(c,'horizontal',168,1446,745,172,discounted);
 drawOfferPrice(c,p.precio.efectivo,186,1560,390,90,42);
 if(p.precio.referencia>p.precio.efectivo)mobileText(c,'Referencial: '+money(p.precio.referencia),211,1600,390,30,20,textColor('price','#fff'),'400');
-if(discounted)mobileText(c,'-'+p.precio.descuento+'%',630,1570,260,112,60,textColor('discount','#104d32'));
+if(discounted)mobileText(c,'-'+p.precio.descuento+'%',645,1570,260,112,60,textColor('discount','#104d32'));
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'banner-storie-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('storyControls'+index),button)}
 else{const controls=$('storyControls'+index);if(controls.parentNode!==card)card.insertBefore(controls,card.querySelector('button'))}
 return card;
@@ -348,7 +348,7 @@ if(p.precio.referencia>p.precio.efectivo){
 const value=money(p.precio.referencia);c.font='700 46px Ubuntu';const width=Math.min(c.measureText(value).width,280);
 mobileText(c,value,260,918,280,46,26,textColor('price','#414749'));c.strokeStyle=textColor('price','#414749');c.lineWidth=3;c.beginPath();c.moveTo(250,901);c.lineTo(270+width,901);c.stroke();
 }
-if(p.precio.descuento>0){mobileText(c,'-'+p.precio.descuento+'%',565,925,160,70,40,textColor('discount','#104d32'))}
+if(p.precio.descuento>0){mobileText(c,'-'+p.precio.descuento+'%',584,925,160,70,40,textColor('discount','#104d32'))}
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'pantalla-fhd-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('fhdControls'+index),button)}
 else{const controls=$('fhdControls'+index);if(controls.parentNode!==card)card.insertBefore(controls,card.querySelector('button'))}
 return card;
@@ -373,7 +373,7 @@ const discounted=p.precio.descuento>0;
 if(discounted){c.save();c.beginPath();c.roundRect(110,1021,581,144,28);c.clip();c.fillStyle='#8ce5b0';c.beginPath();c.moveTo(535,1021);c.lineTo(691,1021);c.lineTo(691,1165);c.lineTo(484,1165);c.lineTo(449,1058);c.quadraticCurveTo(442,1043,457,1038);c.closePath();c.fill();c.restore()}
 drawOfferPrice(c,p.precio.efectivo,125,1122,discounted?315:545,72,36);
 if(p.precio.referencia>p.precio.efectivo)mobileText(c,'Referencial: '+money(p.precio.referencia),143,1153,310,24,16,textColor('price','#fff'),'400');
-if(discounted)mobileText(c,'-'+p.precio.descuento+'%',472,1130,202,86,44,textColor('discount','#104d32'));
+if(discounted)mobileText(c,'-'+p.precio.descuento+'%',484,1130,202,86,44,textColor('discount','#104d32'));
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'banner-mini-totem-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('miniControls'+index),button)}
 else{const controls=$('miniControls'+index);if(controls.parentNode!==card)card.insertBefore(controls,card.querySelector('button'))}
 return card;
@@ -396,7 +396,7 @@ const discounted=p.precio.descuento>0;
 drawPricePlate(c,'horizontal',2355,490,1050,244,discounted);
 drawOfferPrice(c,p.precio.efectivo,2382,656,535,126,64);
 if(p.precio.referencia>p.precio.efectivo)mobileText(c,'Referencial: '+money(p.precio.referencia),2415,714,550,42,28,textColor('price','#fff'),'400');
-if(discounted)mobileText(c,'-'+p.precio.descuento+'%',3010,669,365,164,84,textColor('discount','#104d32'));
+if(discounted)mobileText(c,'-'+p.precio.descuento+'%',3030,669,365,164,84,textColor('discount','#104d32'));
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'pantalla-horizontal-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('horizontalControls'+index),button)}
 else{const controls=$('horizontalControls'+index);if(controls.parentNode!==card)card.insertBefore(controls,card.querySelector('button'))}
 return card;
@@ -419,7 +419,7 @@ mobileText(c,p.nombre,2080,510,610,46,26,textColor('name','#414749'),'400');
 drawPricePlate(c,'vertical',2075,535,620,155,p.precio.descuento>0);
 drawOfferPrice(c,p.precio.efectivo,2098,660,575,120,60,.55);
 if(p.precio.referencia>p.precio.efectivo){const value=money(p.precio.referencia);c.font='700 46px Ubuntu';const width=Math.min(c.measureText(value).width,280);mobileText(c,value,2155,735,280,46,26,textColor('price','#414749'));c.strokeStyle=textColor('price','#414749');c.lineWidth=3;c.beginPath();c.moveTo(2145,718);c.lineTo(2165+width,718);c.stroke()}
-if(p.precio.descuento>0){mobileText(c,'-'+p.precio.descuento+'%',2480,746,165,70,40,textColor('discount','#104d32'))}
+if(p.precio.descuento>0){mobileText(c,'-'+p.precio.descuento+'%',2499,746,165,70,40,textColor('discount','#104d32'))}
 if(!existing){const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'horizontal-3840-'+(i+1)+'-'+p.id+'.png'));card.append(label,output,$('horizontal3840Controls'+index),button)}
 else{const controls=$('horizontal3840Controls'+index);if(controls.parentNode!==card)card.insertBefore(controls,card.querySelector('button'))}
 return card;

@@ -154,6 +154,8 @@ class Handler(SimpleHTTPRequestHandler):
             else:
                 return self.auth_json({'error': 'Ruta no disponible.'}, 404)
             return self.auth_json({'connected': google_sheets_auth.token_path().is_file()})
+        except google_sheets_auth.GoogleConnectionError as error:
+            return self.auth_json({'error': str(error)}, 400)
         except Exception:
             return self.auth_json({'error': 'No se pudo conectar con Google. Revisa las dependencias, el JSON OAuth y completa la autorización en el navegador. Puedes volver a intentarlo.'}, 400)
 

@@ -11,6 +11,10 @@ ROWS = ('3', '9', '17', '18', '29', '37', '43', '51', '52', '63')
 LOCK = threading.Lock()
 
 
+class GoogleConnectionError(Exception):
+    """Connection failure with a message safe to display in the local UI."""
+
+
 def token_path():
     return Path(os.environ.get('LOCALAPPDATA', Path.home() / '.local' / 'share')) / 'PCFactoryBanners' / 'google-token.json'
 
@@ -25,7 +29,7 @@ def client_path():
     candidates = list((Path.home() / 'Desktop').glob('client_secret_*.apps.googleusercontent.com.json'))
     if len(candidates) == 1:
         return candidates[0]
-    raise ValueError('Configura BANNERS_GOOGLE_CLIENT con la ruta del JSON OAuth de escritorio, fuera del proyecto.')
+    raise GoogleConnectionError('No se encontró el JSON OAuth. Guarda credentials.json en %LOCALAPPDATA%\\PCFactoryBanners o revisa BANNERS_GOOGLE_CLIENT.')
 
 
 def libraries():
@@ -34,7 +38,7 @@ def libraries():
         from google.auth.transport.requests import Request, AuthorizedSession
         from google_auth_oauthlib.flow import InstalledAppFlow
     except ImportError as error:
-        raise ValueError('Instala las dependencias: python -m pip install -r requirements.txt') from error
+        raise GoogleConnectionError('Faltan las dependencias de Google. Ejecuta pip install -r requirements.txt con el mismo Python que inicia el generador.') from error
     return Credentials, Request, AuthorizedSession, InstalledAppFlow
 
 
@@ -63,13 +67,26 @@ def credentials():
 def connect():
     _, _, _, InstalledAppFlow = libraries()
     path = client_path()
-    if 'installed' not in json.loads(path.read_text(encoding='utf-8')):
-        raise ValueError('El JSON debe ser de un cliente OAuth de aplicación de escritorio.')
-    flow = InstalledAppFlow.from_client_secrets_file(str(path), SCOPES)
-    creds = flow.run_local_server(host='127.0.0.1', port=0, timeout_seconds=180,
-                                  access_type='offline', prompt='consent')
-    with LOCK:
-        save(creds)
+    try:
+        config = json.loads(path.read_text(encoding='utf-8-sig'))
+        if not isinstance(config, dict) or not isinstance(config.get('installed'), dict):
+            raise ValueError('Missing desktop client')
+        flow = InstalledAppFlow.from_client_config(config, SCOPES)
+    except OSError as error:
+        raise GoogleConnectionError('No se pudo abrir el JSON OAuth. Revisa la ruta y los permisos de lectura.') from error
+    except (ValueError, TypeError, KeyError) as error:
+        raise GoogleConnectionError('El JSON OAuth es inválido. Usa el archivo de un cliente de aplicación de escritorio.') from error
+    try:
+        creds = flow.run_local_server(host='127.0.0.1', port=0, timeout_seconds=180,
+                                      access_type='offline', prompt='consent')
+    except Exception as error:
+        # Some consent errors are displayed by Google without redirecting to localhost.
+        raise GoogleConnectionError('La autorización de Google no se completó. Revisa el mensaje que muestra Google en el navegador y termina el inicio de sesión en ese equipo.') from error
+    try:
+        with LOCK:
+            save(creds)
+    except OSError as error:
+        raise GoogleConnectionError('Google autorizó el acceso, pero no se pudo guardar la sesión. Revisa los permisos de %LOCALAPPDATA%\\PCFactoryBanners.') from error
 
 
 def disconnect():

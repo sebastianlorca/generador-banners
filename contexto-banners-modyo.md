@@ -1,6 +1,18 @@
 # Contexto: generador de banners e integración con Modyo
 
-Última actualización: 16 de noviembre de 2026.
+Última actualización: 18 de noviembre de 2026.
+
+## Selección inicial y posición del descuento (17 de noviembre de 2026)
+
+- El generador local abre con Desk, Mobile y Storie marcados por defecto. Los otros cuatro formatos se pueden activar manualmente. En Masivo, los grupos nuevos toman la selección general vigente.
+- El porcentaje de descuento se desplaza ligeramente a la derecha dentro de su portaprecio, con su tamaño y reglas de ajuste originales. Tras la corrección del usuario, los precios de oferta y referenciales volvieron a sus posiciones y tamaños previos, incluidos los portaprecios verticales. Aplica a Individual y Masivo locales. Se comprobó la sintaxis de JavaScript y pasó la prueba Edge con servicios simulados. Recargar con Ctrl+F5 y volver a generar.
+
+## Acceso de otras cuentas corporativas a Google Sheets (18 de noviembre de 2026)
+
+- Se confirmó en la consola que el proyecto Generador de banners pertenece a la organización `pcfactory.cl` y que su público OAuth está configurado como **Interno**. Los miembros de la misma organización reutilizan un solo cliente OAuth de escritorio. El permiso de lectura se concede por separado en Drive a cada cuenta o al grupo del equipo.
+- Se verificó que el JSON existente del usuario corresponde a un cliente OAuth de escritorio. Cada equipo guarda una copia del mismo JSON, distribuido por un canal interno, en `%LOCALAPPDATA%\PCFactoryBanners\credentials.json`. Las dependencias de `requirements.txt` se instalan con el mismo Python que inicia el generador. En Masivo, cada persona pulsa **Conectar con Google**, autoriza su cuenta corporativa y luego carga la semana. El generador guarda un token personal en ese equipo.
+- El mensaje reportado por la compañera era genérico. Se actualizaron `google_sheets_auth.py` y `servidor-mvp.py` para distinguir dependencias faltantes, errores al localizar o leer el JSON, JSON inválido, autorización incompleta y errores al guardar la sesión. Pasaron 11 pruebas Python con un perfil aislado. Para ver los mensajes nuevos, usar la versión actualizada y reiniciar `iniciar-mvp.cmd`.
+- Queda pendiente confirmar la conexión de la compañera y la lectura de la planilla privada desde su cuenta. Si vuelve a fallar, registrar el mensaje actualizado del generador o el código que muestre Google en el navegador.
 
 ## Ajuste adicional de $ vertical y hover de botones (16 de noviembre de 2026)
 
