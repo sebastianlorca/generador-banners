@@ -276,6 +276,7 @@ for(const word of words){if(line&&brandText(context,line+' '+word)>width){lines.
 for(let i=0;i<Math.min(lines.length,maxLines);i++){const value=i===maxLines-1?lines.slice(i).join(' '):lines[i];mobileText(context,value,x,y+i*(size+3),width,size,size,textColor('title','#414749'),weight)}
 }
 function renderMobile(scene,edited){
+const horizontalPricePlate=$('mobilePricePlate').value==='horizontal';
 const cards=edited.map((p,i)=>{
 const cardId='mobileCard'+scene.slots[i].index;
 const existing=$(cardId),card=existing||document.createElement('article');card.id=cardId;card.className='mobile-card product-controls';
@@ -284,12 +285,16 @@ const output=existing?card.querySelector('canvas'):document.createElement('canva
 const c=output.getContext('2d');c.drawImage(scene.mobileBg,0,0,556,416);
 const control=controlNames[scene.slots[i].index],img=scene.renderedImages[i];
 const zoom=Number($('mobileZoom'+control).value)/100,x=Number($('mobileX'+control).value),y=Number($('mobileY'+control).value);
-const scale=Math.min(220/img.width,155/img.height)*zoom;
-c.drawImage(img,398-img.width*scale/2+x,260-img.height*scale/2+y,img.width*scale,img.height*scale);
-// Mobile separates brand and title, keeping automatic titles free of duplicate brands.
-mobileText(c,registeredBrand(p),54,201,210,23,16,textColor('title','#414749'));
-mobileText(c,titleWithoutBrand(p),54,230,210,22,14,textColor('title','#414749'));
-mobileText(c,p.nombre,54,250,210,16,12,textColor('name','#414749'),'400');
+const scale=Math.min(245/img.width,163/img.height)*zoom;
+c.drawImage(img,398-img.width*scale/2+x,264-img.height*scale/2+y,img.width*scale,img.height*scale);
+mobileText(c,p.bannerTitle,65,230,205,17,12,textColor('title','#414749'));
+mobileText(c,p.nombre,65,246,205,13,11,textColor('name','#414749'),'400');
+if(horizontalPricePlate){
+drawPricePlate(c,'horizontal',49,253,239,55,p.precio.descuento>0);
+drawOfferPrice(c,p.precio.efectivo,54,291,130,30,16);
+if(Number.isFinite(p.precio.referencia))mobileText(c,'Referencial: '+money(p.precio.referencia),63,304,125,10,8,textColor('price','#fff'),'400');
+if(p.precio.descuento>0)mobileText(c,'-'+p.precio.descuento+'%',197,294,87,37,18,textColor('discount','#104d32'));
+}else{
 drawPricePlate(c,'vertical',52,258,210,52,p.precio.descuento>0);
 drawOfferPrice(c,p.precio.efectivo,59,298,196,40,22,.55);
 // Only draw the discount badge for a positive discount.
@@ -298,6 +303,7 @@ if(p.precio.descuento>0){
 mobileText(c,'-'+p.precio.descuento+'%',191,329,51,24,17,textColor('discount','#104d32'));
 }
 if(p.precio.referencia>p.precio.efectivo){c.font='700 15px Ubuntu';c.fillStyle=textColor('price','#414749');const value=money(p.precio.referencia);const width=c.measureText(value).width;c.fillText(value,84,326);c.strokeStyle=textColor('price','#414749');c.lineWidth=1;c.beginPath();c.moveTo(83,321);c.lineTo(85+width,321);c.stroke()}
+}
 if(!existing){
 const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent='Descargar mobile '+(i+1)+' PNG';button.disabled=true;button.addEventListener('click',()=>downloadCanvas(output,'banner-mobile-'+(i+1)+'-'+p.id+'.png'));
 card.append(label,output,$('mobileControls'+scene.slots[i].index),button);
@@ -429,6 +435,7 @@ const container=$('horizontal3840Previews');if(container.children.length!==cards
 function exportBlob(output){const mime='image/'+$('exportFormat').value;return new Promise((resolve,reject)=>{try{output.toBlob(blob=>{if(!blob)return reject(new Error('No se pudo exportar la imagen.'));if(blob.type!==mime)return reject(new Error('El navegador no admite este formato. Selecciona PNG.'));resolve(blob)},mime,0.9)}catch{reject(new Error('No se pudo exportar la imagen. Comprueba los permisos CORS de los fondos.'))}})}
 function updateExportLabels(){const format=$('exportFormat').value.toUpperCase();$('download').textContent='Descargar escritorio '+format;root.querySelectorAll('#mobilePreviews button').forEach((button,i)=>{button.textContent='Descargar mobile '+(i+1)+' '+format});root.querySelectorAll('#storyPreviews button').forEach((button,i)=>{button.textContent='Descargar storie '+(i+1)+' '+format});root.querySelectorAll('#fhdPreviews button').forEach((button,i)=>{button.textContent='Descargar Pantalla FHD '+(i+1)+' '+format});root.querySelectorAll('#miniPreviews button').forEach((button,i)=>{button.textContent='Descargar Mini Totem '+(i+1)+' '+format});root.querySelectorAll('#horizontalPreviews button').forEach((button,i)=>{button.textContent='Descargar Horizontal 5760 '+(i+1)+' '+format});root.querySelectorAll('#horizontal3840Previews button').forEach((button,i)=>{button.textContent='Descargar Horizontal 3840 '+(i+1)+' '+format})}
 $('exportFormat').addEventListener('change',()=>{updateExportLabels();if(lastScene&&!$('downloadAll')?.disabled)updatePreviewLinks()});
+$('mobilePricePlate').addEventListener('change',()=>{if(lastScene?.formats.mobile)refreshEdits()});
 async function downloadCanvas(output,filename){try{const blob=await exportBlob(output),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename.replace(/\.png$/,'.'+blob.type.split('/')[1]);a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)}catch(error){status(error.message,true)}}
 function renderScene(scene){
 textColors=readTextColors();
@@ -545,13 +552,15 @@ refreshEdits();return true;
 },
 endpointPrices:()=>lastScene?.products.map(p=>({efectivo:p.precio.efectivo,referencia:Number.isFinite(p.precio.referencia)?p.precio.referencia:p.precio.efectivo})),
 campaignConfig:entry=>({campaign:entry.meta.uuid,values:parseCampaign(JSON.stringify(entry))}),
-snapshot:()=>({campaign:campaignSelector.value,values:{...campaignValues},formats:selectedFormats(),exportFormat:$('exportFormat').value,ready:!!loadedCampaignId&&!campaignLoading&&!busy}),
+snapshot:()=>({campaign:campaignSelector.value,values:{...campaignValues},formats:selectedFormats(),exportFormat:$('exportFormat').value,mobilePricePlate:$('mobilePricePlate').value,ready:!!loadedCampaignId&&!campaignLoading&&!busy}),
 async run(config){
 if(!Array.from(campaignSelector.options).some(option=>option.value===config.campaign)){const option=document.createElement('option');option.value=config.campaign;option.textContent=config.campaign;campaignSelector.append(option)}
 campaignSelector.value=config.campaign;campaignValues={...config.values};loadedCampaignId=config.campaign;campaignLoading=false;
 slotIds.forEach((id,i)=>{$(id).value=config.ids[i]||''});updateVersion();
 for(const [key,id] of Object.entries(formatFields))$(id).checked=!!config.formats[key];
-$('exportFormat').value=config.exportFormat;syncFormatSections();
+$('exportFormat').value=config.exportFormat;
+$('mobilePricePlate').value=config.mobilePricePlate??'horizontal';
+syncFormatSections();
 const ok=await generate();return {ok,message:$('status').textContent};
 }
 };

@@ -50,6 +50,14 @@ assert(frames[0].contentWindow.bannerGenerator.snapshot().campaign==='40dd98db-c
 assert(frames[1].contentWindow.bannerGenerator.snapshot().campaign==='11111111-2222-3333-4444-555555555555','Campana distinta por grupo mediante UUID');
 assert(first.getElementById('formatDesk').checked&&!first.getElementById('formatMobile').checked,'Primer grupo solo Desk');
 assert(!second.getElementById('formatDesk').checked&&second.getElementById('formatMobile').checked,'Otro grupo solo Mobile');
+const batchMobile=second.querySelector('#mobilePreviews canvas');
+const batchPlatePixel=(x,y)=>Array.from(batchMobile.getContext('2d').getImageData(x,y,1,1).data).slice(0,3).join(',');
+const batchPlate=$('mobilePricePlate');
+assert(batchPlatePixel(250,303)==='142,232,178','Mobile horizontal inicial en Masivo');
+batchPlate.value='vertical';batchPlate.dispatchEvent(new Event('change'));
+assert(batchPlatePixel(243,324)==='169,228,176','Cambiar Mobile masivo a vertical');
+batchPlate.value='horizontal';batchPlate.dispatchEvent(new Event('change'));
+assert(batchPlatePixel(250,303)==='142,232,178','Volver a Mobile horizontal en Masivo');
 await wait(()=>tabs[0].getAttribute('aria-selected')==='true'&&getComputedStyle(tabs[0]).backgroundColor!==getComputedStyle(tabs[2]).backgroundColor);
 assert(first.getElementById('download').disabled===false,'Descarga habilitada');
 assert(first.getElementById('titleLeft').value==='Familia Marca®','Marca registrada en titulo del grupo');
@@ -103,6 +111,9 @@ await wait(()=>document.querySelectorAll('#individualResults a.banner-preview-li
 const individualPreview=$('canvas').closest('a');
 assert((await(await fetch(individualPreview.href)).blob()).type==='image/webp','Blob de vista previa respeta selector WebP');
 const pixel=(container,x,y)=>Array.from($(container).querySelector('canvas').getContext('2d').getImageData(x,y,1,1).data).slice(0,3).join(',');
+const selectPlate=value=>{$('mobilePricePlate').value=value;$('mobilePricePlate').dispatchEvent(new Event('change'))};
+assert(config.mobilePricePlate==='horizontal'&&pixel('mobilePreviews',250,303)==='142,232,178','Mobile horizontal por defecto');
+selectPlate('vertical');
 assert(pixel('mobilePreviews',243,324)==='169,228,176','SVG vertical con grupo DCTO visible');
 assert(pixel('storyPreviews',885,1480)==='142,232,178','SVG horizontal en Storie');
 bannerGenerator.setPrices([{efectivo:100,referencia:100},{efectivo:100,referencia:0},{efectivo:100,referencia:100}]);
@@ -110,6 +121,9 @@ assert(pixel('mobilePreviews',243,324)!=='169,228,176','Ocultar DCTO con descuen
 assert(pixel('storyPreviews',885,1480)==='142,232,178','Conservar verde del horizontal sin descuento');
 bannerGenerator.setPrices([{efectivo:100,referencia:200},{efectivo:100,referencia:200},{efectivo:100,referencia:200}]);
 assert(pixel('mobilePreviews',243,324)==='169,228,176','Restaurar DCTO al volver el descuento');
+selectPlate('horizontal');
+assert(pixel('mobilePreviews',250,303)==='142,232,178','Volver a Mobile horizontal');
+assert(pixel('storyPreviews',885,1480)==='142,232,178','Storie conserva el portaprecio');
 $('sheetCycle').value='43';$('sheetCycle').dispatchEvent(new Event('change'));assert($('sheetSummary').children.length===2,'Segundo ciclo');
 assert($('sheetStatus').textContent.includes('1 listos · 1 por revisar')&&$('sheetSummary').children[1].querySelector('.batch-card-badge').textContent.includes('Sin campaña'),'Campaña pendiente visible en tarjeta y conteo');
 $('generationMode').value='massive';$('generationMode').dispatchEvent(new Event('change'));

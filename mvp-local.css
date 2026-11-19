@@ -34,6 +34,9 @@
 #pcf-banner-mvp .format-options small{display:block;font-size:10px;color:var(--studio-muted);font-weight:400;margin-top:3px}
 #pcf-banner-mvp .generate-footer{display:flex;align-items:end;justify-content:space-between;gap:24px;padding:24px 32px 16px}
 #pcf-banner-mvp .export-choice{width:240px;max-width:100%}
+#pcf-banner-mvp .generate-choices{display:flex;gap:12px;min-width:0}
+#pcf-banner-mvp .generate-choices select{min-width:0}
+@media(max-width:420px){#pcf-banner-mvp .generate-choices{flex-direction:column}}
 #pcf-banner-mvp .generate-footer .actions{margin:0}
 #pcf-banner-mvp button{background:var(--studio-green);border:1px solid transparent;border-radius:10px;min-height:46px;padding:12px 20px;box-shadow:none;transition:background .15s,transform .15s;font-size:14px}
 #pcf-banner-mvp button:hover:not(:disabled){background:#05613a;color:#fff;transform:translateY(-1px)}

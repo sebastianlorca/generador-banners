@@ -192,5 +192,14 @@ for(const checkbox of $('sheetSummary').querySelectorAll('[data-format="'+key+'"
 for(const card of $('sheetSummary').children)card.updateStatus?.();
 clearBatch();
 });
-$('exportFormat').addEventListener('change',()=>{for(const frame of panels.querySelectorAll('iframe')){const select=frame.contentDocument.getElementById('exportFormat');select.value=$('exportFormat').value;select.dispatchEvent(new frame.contentWindow.Event('change'))}});
+for(const id of ['exportFormat','mobilePricePlate']){
+const setting=$(id);
+setting.addEventListener('change',()=>{
+for(const frame of panels.querySelectorAll('iframe')){
+const select=frame.contentDocument.getElementById(id);
+select.value=setting.value;
+select.dispatchEvent(new frame.contentWindow.Event('change'));
+}
+});
+}
 })();
