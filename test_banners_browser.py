@@ -29,6 +29,16 @@ if(input.checked&&!['formatDesk','formatMobile'].includes(input.id))input.click(
 }
 const groupRows=$('sheetSummary').children;
 const groupFormat=(index,key)=>groupRows[index].querySelector('[data-format="'+key+'"]');
+const firstFormats=[...groupRows[0].querySelectorAll('[data-format]')];
+const initiallySelected=firstFormats.filter(input=>input.checked);
+const allFormats=groupRows[0].querySelector('.batch-group-formats input');
+assert(allFormats.indeterminate,'Todos indica seleccion parcial');
+allFormats.click();
+assert(allFormats.checked&&firstFormats.every(input=>input.checked)&&!groupFormat(1,'story').checked,'Marcar todos solo en el primer banner');
+allFormats.click();
+assert(firstFormats.every(input=>!input.checked)&&groupRows[0].dataset.state==='review','Desmarcar todos actualiza el estado');
+initiallySelected.forEach(input=>input.click());
+assert(allFormats.indeterminate&&groupRows[0].dataset.state==='ready','Restaurar seleccion parcial');
 groupFormat(0,'mobile').click();
 groupFormat(2,'desk').click();
 groupFormat(2,'mobile').click();

@@ -85,7 +85,21 @@ const controls=document.createElement('div');
 controls.className='batch-group-formats';controls.setAttribute('role','group');controls.setAttribute('aria-labelledby',heading.id);
 let formats=groupFormats.get(group);
 if(!formats){formats=Object.fromEntries(formatInputs.map(input=>[formatKey(input),input.checked]));groupFormats.set(group,formats)}
-const updateCard=()=>{const empty=!Object.values(formats).some(Boolean);row.dataset.state=campaignError||empty?'review':'ready';badge.textContent=campaignError?'⚠ Sin campaña':empty?'⚠ Sin formatos':'✓ Listo';updateSummaryStatus()};
+const allLabel=document.createElement('label'),allFormats=document.createElement('input');
+allFormats.type='checkbox';
+allLabel.append(allFormats,document.createTextNode('Todos'));controls.append(allLabel);
+allFormats.addEventListener('change',()=>{
+for(const checkbox of controls.querySelectorAll('[data-format]')){
+checkbox.checked=allFormats.checked;
+formats[checkbox.dataset.format]=checkbox.checked;
+}
+clearBatch();updateCard();
+});
+const updateCard=()=>{
+const selected=Object.values(formats),empty=!selected.some(Boolean);
+allFormats.checked=selected.every(Boolean);
+allFormats.indeterminate=!empty&&!allFormats.checked;
+row.dataset.state=campaignError||empty?'review':'ready';badge.textContent=campaignError?'⚠ Sin campaña':empty?'⚠ Sin formatos':'✓ Listo';updateSummaryStatus()};
 row.updateStatus=updateCard;
 for(const input of formatInputs){
 const key=formatKey(input),label=document.createElement('label'),checkbox=document.createElement('input');
