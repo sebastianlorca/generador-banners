@@ -441,8 +441,10 @@ function renderScene(scene){
 textColors=readTextColors();
 const edited=scene.products.map((p,i)=>editedProduct(p,scene.slots[i].index));
 if(scene.formats.desk){ctx.clearRect(0,0,1920,525);ctx.drawImage(scene.bg,0,0,1920,525);
-const count=scene.products.length;const layouts=count===3?[[532,343],[965,343],[1401,343]]:[[328,343],[1281,365]];
-edited.forEach((p,i)=>{const control=controlNames[scene.slots[i].index],zoom=Number($('zoom'+control).value),x=Number($('offset'+control+'X').value),y=Number($('offset'+control+'Y').value);if(count===1)singleProduct(p,scene.renderedImages[i],zoom,x,y);else product(p,scene.renderedImages[i],...layouts[i],zoom,x,y)});
+const count=scene.products.length;
+const productPositions=count===3?[532,965,1401]:[328,1281];
+const priceY=343;
+edited.forEach((p,i)=>{const control=controlNames[scene.slots[i].index],zoom=Number($('zoom'+control).value),x=Number($('offset'+control+'X').value),y=Number($('offset'+control+'Y').value);if(count===1)singleProduct(p,scene.renderedImages[i],zoom,x,y);else product(p,scene.renderedImages[i],productPositions[i],priceY,zoom,x,y)});
 }
 if(scene.formats.mobile)renderMobile(scene,edited);if(scene.formats.story)renderStories(scene,edited);if(scene.formats.fhd)renderFhd(scene,edited);if(scene.formats.mini)renderMini(scene,edited);if(scene.formats.horizontal)renderHorizontal(scene,edited);if(scene.formats.horizontal3840)renderHorizontal3840(scene,edited);
 }
