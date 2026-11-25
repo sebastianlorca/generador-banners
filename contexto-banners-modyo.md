@@ -1,6 +1,14 @@
 # Contexto: generador de banners e integración con Modyo
 
-Última actualización: 18 de noviembre de 2026.
+Última actualización: 22 de noviembre de 2026.
+
+## Automatización futura de publicaciones en Modyo con Playwright (22 de noviembre de 2026)
+
+- Se acordó retomar más adelante un flujo local en el que Playwright use la misma planilla base de Masivo para asociar cada banner generado con su entrada en Modyo, subir su PNG o WebP y programar su publicación. Queda por definir qué columnas identificarán la entrada, la fecha y hora, y cómo se vinculará cada fila con el archivo exportado.
+- Playwright puede ejecutarse como script local sin IA por CLI ni suscripción a ChatGPT. Cada persona puede iniciar sesión con su cuenta corporativa en el navegador y completar SSO o MFA si corresponde. La cuenta requiere permisos de edición y programación o el flujo de revisión que aplique.
+- Primera prueba propuesta con un solo banner y una entrada de prueba, idealmente en un espacio de pruebas. Se necesita la URL del administrador o de la entrada, un archivo generado y saber si se creará una entrada o se actualizará una existente. Identificar el campo de imagen y los campos obligatorios, subir el archivo, guardar como borrador y verificar la vista previa.
+- Una vez autorizada la prueba de programación, comprobar la zona horaria de la instancia, elegir una fecha futura y verificar que la entrada figure como Programada con la fecha y hora esperadas. Modyo ejecuta la publicación programada después de confirmarla, aunque el equipo local esté apagado.
+- Solo se consultó documentación pública. El acceso a la instancia y la implementación quedan para más adelante. [Autenticación en Playwright](https://playwright.dev/docs/next/auth) · [Gestión y programación de entradas en Modyo](https://docs.modyo.com/es/platform/content/entries.html)
 
 ## Selección inicial y posición del descuento (17 de noviembre de 2026)
 
@@ -12,7 +20,7 @@
 - Se confirmó en la consola que el proyecto Generador de banners pertenece a la organización `pcfactory.cl` y que su público OAuth está configurado como **Interno**. Los miembros de la misma organización reutilizan un solo cliente OAuth de escritorio. El permiso de lectura se concede por separado en Drive a cada cuenta o al grupo del equipo.
 - Se verificó que el JSON existente del usuario corresponde a un cliente OAuth de escritorio. Cada equipo guarda una copia del mismo JSON, distribuido por un canal interno, en `%LOCALAPPDATA%\PCFactoryBanners\credentials.json`. Las dependencias de `requirements.txt` se instalan con el mismo Python que inicia el generador. En Masivo, cada persona pulsa **Conectar con Google**, autoriza su cuenta corporativa y luego carga la semana. El generador guarda un token personal en ese equipo.
 - El mensaje reportado por la compañera era genérico. Se actualizaron `google_sheets_auth.py` y `servidor-mvp.py` para distinguir dependencias faltantes, errores al localizar o leer el JSON, JSON inválido, autorización incompleta y errores al guardar la sesión. Pasaron 11 pruebas Python con un perfil aislado. Para ver los mensajes nuevos, usar la versión actualizada y reiniciar `iniciar-mvp.cmd`.
-- Queda pendiente confirmar la conexión de la compañera y la lectura de la planilla privada desde su cuenta. Si vuelve a fallar, registrar el mensaje actualizado del generador o el código que muestre Google en el navegador.
+- El usuario confirmó que la compañera pudo conectar su cuenta corporativa y cargar una semana desde la planilla privada.
 
 ## Ajuste adicional de $ vertical y hover de botones (16 de noviembre de 2026)
 
@@ -38,15 +46,15 @@
 
 - Se comprobó que una nueva campaña publicada en Modyo aparece al recargar el generador local.
 - Se completó el guardado y envío en Git de los cambios recientes, incluidos títulos automáticos, archivos adjuntos y actualizaciones posteriores. No se registran aquí hashes ni detalles del envío. Esta confirmación prevalece sobre las referencias históricas a cambios sin commit/push; no implica publicación del widget en Modyo.
-- El usuario confirmó el 16 de noviembre que el inicio de sesión real con Google está comprobado y funciona correctamente. Ya no es un pendiente. La lectura de una planilla privada no se confirmó por separado.
-- Siguen pendientes la comprobación de lectura de una planilla privada, el traslado de las mejoras locales al widget Modyo y la asignación del nuevo portaprecio SVG a Mini Tótem.
+- El usuario confirmó el 16 de noviembre que el inicio de sesión real con Google está comprobado y funciona correctamente. Ya no es un pendiente. La lectura de la planilla privada se confirmó posteriormente con la cuenta corporativa de la compañera.
+- Siguen pendientes el traslado de las mejoras locales al widget Modyo y la asignación del nuevo portaprecio SVG a Mini Tótem.
 
 ## OAuth local para planillas privadas (16 de noviembre de 2026)
 
 - Se agregó `google_sheets_auth.py` y `requirements.txt`. Masivo tiene botones Conectar con Google y Desconectar Google. Cada usuario autoriza su cuenta con OAuth de escritorio y alcance Sheets de solo lectura. El JSON se busca fuera del proyecto (variable `BANNERS_GOOGLE_CLIENT`, carpeta de datos local o un único JSON de cliente en el Escritorio). No se copiaron credenciales al repositorio.
 - El token se guarda fuera de la carpeta web en `%LOCALAPPDATA%\PCFactoryBanners\google-token.json`. Desconectar elimina el token local, sin revocar el permiso en Google. Los POST de conexión requieren origen local y cabecera específica.
 - Con cuenta conectada, `/api/sheets` usa Sheets API `values:batchGet` para las diez filas semanales y mantiene el parser existente mediante CSV en memoria. Sin conexión mantiene el flujo público previo. No cambia Modyo.
-- Validado: JSON de escritorio encontrado sin mostrar secretos; dependencias instaladas; ocho pruebas de planilla, tres pruebas nuevas de conversión/autorización simulada, prueba de navegador Edge, sintaxis Python/JS correctas. El usuario confirmó el 16 de noviembre que el inicio de sesión real con Google funciona correctamente. Queda pendiente confirmar por separado la lectura de una planilla privada. README actualizado con inicio, modos y OAuth.
+- Validado: JSON de escritorio encontrado sin mostrar secretos; dependencias instaladas; ocho pruebas de planilla, tres pruebas nuevas de conversión/autorización simulada, prueba de navegador Edge, sintaxis Python/JS correctas. El usuario confirmó el 16 de noviembre que el inicio de sesión real con Google funciona correctamente. La lectura de la planilla privada se confirmó posteriormente con la cuenta corporativa de la compañera. README actualizado con inicio, modos y OAuth.
 
 ## Estado consolidado para retomar (14 de noviembre de 2026)
 
