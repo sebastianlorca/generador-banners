@@ -1,6 +1,29 @@
 # Contexto: generador de banners e integración con Modyo
 
-Última actualización: 22 de noviembre de 2026.
+Última actualización: 26 de noviembre de 2026.
+
+## Guía vigente para el generador local
+
+1. Ejecuta `iniciar-mvp.cmd`. Si el generador ya estaba abierto, recarga con **Ctrl+F5**. Si también se actualizó el servidor Python, reinícialo antes de recargar.
+2. Para **Individual**, selecciona la campaña y completa de uno a tres IDs. Para **Masivo**, conecta tu cuenta corporativa si la planilla es privada, elige la semana (W01–W52), pulsa **Cargar / actualizar semana** y selecciona el ciclo. Cada banner de Masivo toma su campaña de la planilla.
+3. Desk, Mobile y Storie vienen seleccionados por defecto. En Masivo, la selección general se aplica a todos los grupos. Ajusta después los formatos de cada tarjeta. **Todos** actúa sobre esa tarjeta y muestra un estado intermedio cuando solo hay algunos formatos marcados.
+4. Para **omitir un banner en Masivo**, deja su tarjeta sin formatos. Puedes desmarcarlos uno a uno o marcar **Todos** y luego desmarcarlo. La tarjeta queda como **Sin formatos**. Al pulsar **Generar Banner**, los demás grupos siguen su curso. El grupo omitido queda fuera de las pestañas de resultados y el resumen indica cuántos se omitieron. Si todas las tarjetas quedan sin formatos, marca al menos un formato en algún banner para poder generar.
+5. Elige PNG o WebP para descargar. Si generaste Mobile, puedes cambiar **Portaprecios mobile** entre **Horizontal** (predeterminado) y **Vertical** antes o después de generar. En Masivo, el selector general actualiza las vistas Mobile ya generadas.
+6. En **Producto – Editar controles**, revisa **Imagen cargada** para identificar el origen de la foto. Puedes cambiar la opción, adjuntar una imagen personalizada o ajustar el fondo de catálogo. Los datos y la foto se comparten entre los formatos del producto. Usa los controles de cada formato para ajustar su zoom y posición.
+
+## Cambios locales registrados en Git del 19 al 26 de noviembre
+
+| Fecha y commit | Cambio |
+| --- | --- |
+| 19 nov. · `3cd029c` | Selector de portaprecio Mobile para Individual y Masivo. Horizontal usa el SVG con verde permanente. Vertical usa el SVG que oculta **DCTO** cuando no hay descuento. Ambos muestran el título compartido con marca y el nombre del producto. El cambio redibuja Mobile en las vistas ya generadas. |
+| 20 nov. · `75d6130` | Desk doble y triple alinean los portaprecios a la misma altura (`y = 343`). |
+| 20 nov. · `4090224` | El descuento de Desk doble y triple se ajusta a un ancho de 101 px dentro de su portaprecio. Los deslizadores del eje Y ponen los valores mayores a la izquierda. Moverlos a la derecha reduce Y y sube la imagen. El campo numérico conserva el signo de Canvas, con Y positivo hacia abajo. |
+| 20 nov. · `c456ad7` | Casilla **Todos** por tarjeta de Masivo, con estado parcial y selección independiente por banner. |
+| 25 nov. · `02f1f23` | Los productos nuevos comienzan con la foto 2. Para cada opción de catálogo, el generador intenta primero la versión 1000 por el proxy local y luego la URL de 250 que entrega el catálogo para esa misma opción. Si la opción no se puede cargar, intenta la foto 1 en ese mismo orden. El catálogo valida el precio efectivo por separado y la carga de fotos maneja su propia disponibilidad. |
+| 26 nov. · `a642645` | **Imagen cargada** indica si se usó la versión 1000, la alternativa 250 o una imagen personalizada. El editor ordena primero los ajustes de imagen y fondo, luego la selección de foto y finalmente los textos y precios. Adjuntar un archivo selecciona la opción 11 y conserva sus blancos y transparencia. |
+| 26 nov. · `58fd939` | Masivo omite los grupos sin formatos, conserva el orden de los seleccionados y agrega las omisiones al resumen. El ciclo sigue requiriendo grupos con IDs válidos. La prueba de Edge con servicios simulados verifica que el banner omitido quede fuera de los resultados y que los demás continúen, incluso ante un error de catálogo en otro grupo. |
+
+Estos cambios corresponden al generador local. Sigue pendiente trasladar las mejoras al widget y validarlas en Modyo, asignar un SVG a Mini Tótem y retomar la prueba de publicación con Playwright descrita abajo.
 
 ## Automatización futura de publicaciones en Modyo con Playwright (22 de noviembre de 2026)
 
@@ -58,7 +81,7 @@
 
 ## Estado consolidado para retomar (14 de noviembre de 2026)
 
-Esta sección, actualizada con la confirmación del usuario del 14 de noviembre, prevalece sobre los pendientes y estados históricos del documento. Los detalles de implementación del 13 de noviembre siguen vigentes. Los cambios siguientes están implementados en local, tanto Individual como Masivo cuando corresponda; no se trasladaron ni publicaron en Modyo.
+Esta sección recoge el estado confirmado el 14 de noviembre. Para el comportamiento posterior, consulta la guía vigente al inicio. Los detalles de implementación del 13 de noviembre complementan ese historial. Los cambios siguientes corresponden al generador local, tanto Individual como Masivo cuando corresponda.
 
 ### Cambios realizados
 
@@ -68,18 +91,18 @@ Esta sección, actualizada con la confirmación del usuario del 14 de noviembre,
 - Imagen personalizada mediante archivo adjunto (14 de noviembre): el generador local reemplaza el input de URL por un selector de archivos de imagen en Individual y Masivo. Adjuntar selecciona automáticamente la opción 11 y actualiza los formatos generados, conservando blancos y transparencia. Se puede alternar con el catálogo y reutilizar el archivo al regenerar el mismo producto; cambiar el ID limpia el adjunto. Si falta el archivo o no se puede decodificar, vuelve a la imagen 1. El archivo se procesa en el navegador, no se sube ni persiste tras recargar. Las URLs Blob de carga se liberan al terminar. Prueba Edge con servicios simulados y sintaxis JavaScript correctas, incluyendo adjunto, blancos, alternancia y archivo inválido. No se trasladó a Modyo. Esta sección reemplaza las instrucciones históricas de URL personalizada para el entorno local.
 - Títulos automáticos según el nombre (14 de noviembre): notebooks y desktop reconocen IdeaPad/Gamer, parlantes reconocen Portátil y monitores reconocen Gamer/Curvo. Se usa solo la primera característica reconocida según su posición en el nombre (gamer curvo → Monitor Gamer; curvo gamer → Monitor Curvo), sin repetirla si ya aparece en la familia. Sin coincidencias se conserva familia + marca. Implementado en `mvp-local-generator.js` para Individual y Masivo; conserva títulos editados al regenerar el mismo ID y la separación visual de marca. No se trasladó a Modyo. Validación: 14 casos de títulos, sintaxis JavaScript y prueba de navegador Edge con servicios simulados correctos. Recargar con Ctrl+F5; los productos ya cargados conservan su título, por lo que hay que recargar la página o cambiar el ID para obtener el nuevo automático.
 - Carga de Google Sheets por semana: elegir W01–W52 antes de pulsar «Cargar / actualizar semana». Se consultan diez filas de esa hoja en paralelo, sin descargar el Excel completo. Espera de 120 segundos por consulta y 150 segundos en navegador.
-- Campaña independiente por banner desde la planilla, cruzada con las cinco entradas configuradas. Masivo no requiere elegir una campaña en Individual; se corrigió el bloqueo del botón Generar por esa validación antigua.
+- Campaña independiente por banner desde la planilla, cruzada con el catálogo dinámico de campañas. Masivo obtiene la campaña de cada grupo directamente de la planilla.
 - Resumen masivo en tarjetas: nombre completo, IDs, campaña, celda de referencia, estados y formatos seleccionables. Contador de banners listos y por revisar. Las pestañas de resultados mantienen sus etiquetas abreviadas.
 - Portaprecios SVG superpuestos al fondo, reemplazando las figuras antiguas en los formatos asignados. SVG horizontal siempre conserva su verde; el segundo SVG oculta solo `DCTO` si no hay descuento. Mini Tótem mantiene su caja anterior.
 - ® al 50 % del tamaño del texto de marca, elevado, en los títulos y líneas de marca.
-- Principal Mobile, Principal simple, FHD y Horizontal 3840: marca arriba, título sin repetir la marca debajo y nombre del producto en la línea siguiente. Los títulos compartidos del editor se conservan; la separación se aplica al dibujar esos cuatro formatos.
+- Principal simple, FHD y Horizontal 3840 dibujan la marca arriba, el título sin repetir la marca debajo y el nombre del producto en la línea siguiente. Desde el 19 de noviembre, Mobile muestra el título compartido con marca y luego el nombre.
 - Vistas previas con enlaces Blob: clic o clic derecho para abrir en otra pestaña, PNG/WebP según selección, actualizados tras ediciones válidas. Son URLs temporales del navegador.
 
 | Formato | Portaprecio actual | Texto superior |
 | --- | --- | --- |
 | Principal simple, un producto | Segundo SVG, DCTO condicional | Marca → título sin marca → nombre |
 | Principal doble y triple | SVG horizontal, verde permanente | Título compartido con marca → nombre |
-| Principal Mobile | Segundo SVG, DCTO condicional | Marca → título sin marca → nombre |
+| Principal Mobile | Horizontal por defecto. Vertical opcional con DCTO condicional | Título compartido con marca → nombre |
 | Storie | SVG horizontal, verde permanente | Título compartido con marca → nombre |
 | FHD | Segundo SVG, DCTO condicional | Marca → título sin marca → nombre |
 | Horizontal 5760 | SVG horizontal, verde permanente | Título compartido con marca → nombre |
@@ -306,7 +329,9 @@ Este es el documento único de contexto e instrucciones del proyecto. Se consoli
 
 ## Repositorio Git
 
-Estado revisado el 12 de noviembre de 2026: el commit inicial `b8ee5ef` del 10 de noviembre contiene el proyecto; los commits `31adcf8` y `4b8c236` del 11 de noviembre incorporan las mejoras descritas al inicio. `origin` está configurado como `https://github.com/sebastianlorca/generador-banners.git`; `main` y la referencia local `origin/main` coinciden en `4b8c236`. No se consultó GitHub por red durante esta revisión. Las notas de bloqueo siguientes son históricas y no representan el estado actual.
+Estado comprobado el 26 de noviembre de 2026 con las referencias locales. `main` y `origin/main` coinciden en `58fd939`, que incluye la corrección para omitir banners sin formatos. La referencia remota corresponde al último estado de GitHub registrado en este clon.
+
+El commit inicial `b8ee5ef` del 10 de noviembre contiene el proyecto. Los commits `31adcf8` y `4b8c236` del 11 de noviembre incorporaron mejoras al inicio y a la lectura de nombres de grupos de la planilla.
 
 Destino solicitado: `https://github.com/sebastianlorca/generador-banners.git`. Se inicializó Git local con rama `main` y se agregó `.gitignore` para excluir perfiles de navegador, cachés, archivos de entorno y credenciales habituales, planillas/datos locales, ejemplos gráficos y la aplicación independiente `taller-de-fichas.html`. Se conservarán el código local, los archivos Modyo, las pruebas y este contexto.
 

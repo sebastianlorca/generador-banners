@@ -183,7 +183,13 @@ class Handler(SimpleHTTPRequestHandler):
         else:
             target = params.get('url', [''])[0]
             parsed = urlsplit(target)
-            allowed = ((parsed.netloc == 'assets.pcfactory.cl' and parsed.path.startswith('/public/foto/')) or (parsed.netloc == 'assets-v3.pcfactory.cl' and parsed.path.startswith('/uploads/')))
+            allowed = (
+                (parsed.netloc == 'assets.pcfactory.cl' and (
+                    parsed.path.startswith('/public/foto/')
+                    or re.fullmatch(r'/public/foto_original/[0-9]+/google_1000\.jpg', parsed.path)
+                ))
+                or (parsed.netloc == 'assets-v3.pcfactory.cl' and parsed.path.startswith('/uploads/'))
+            )
             if parsed.scheme != 'https' or not allowed:
                 return self.send_error(400, 'URL de foto no permitida')
         try:

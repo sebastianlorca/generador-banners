@@ -92,6 +92,7 @@ const cutout=first.getElementById('removeWhiteLeft');cutout.checked=false;cutout
 assert(second.getElementById('removeWhiteLeft').checked,'Recorte independiente entre banners');
 cutout.checked=true;cutout.dispatchEvent(new Event('change'));await wait(()=>!first.getElementById('imageLeft').disabled);
 const imageSource=first.getElementById('imageSourceLeft');
+assert(first.getElementById('imageLeft').value==='0'&&imageSource.textContent.includes('foto original'),'Foto original por defecto en Masivo');
 assert(imageSource.textContent.includes('1000'),'Versi?n 1000 al generar');
 const custom=first.getElementById('customImageLeft'),image=first.getElementById('imageLeft');assert(custom.type==='file'&&custom.accept==='image/*','Selector de archivo personalizado');const customData=new frames[0].contentWindow.DataTransfer();customData.items.add(new frames[0].contentWindow.File([await(await fetch('/custom.svg')).blob()],'foto.svg',{type:'image/svg+xml'}));custom.files=customData.files;custom.dispatchEvent(new Event('change'));await wait(()=>!image.disabled);
 assert(image.value==='11'&&cutout.disabled,'Imagen personalizada sin controles de recorte');
@@ -121,6 +122,8 @@ $('selector-campana').selectedIndex=1;$('selector-campana').dispatchEvent(new Ev
 await wait(()=>bannerGenerator.snapshot().ready);
 const config=bannerGenerator.snapshot();Object.keys(config.formats).forEach(k=>config.formats[k]=true);
 const result=await bannerGenerator.run({...config,ids:['1','2','3']});assert(result.ok,'Generación individual con siete formatos');
+assert($('imageLeft').value==='0'&&$('imageSourceLeft').textContent.includes('foto original'),'Foto original por defecto en Individual');
+assert($('imageRight').value==='1','Foto 1 cuando falta la original');
 assert(document.querySelectorAll('#individualResults canvas').length===19,'Canvas de siete formatos');
 assert($('titleLeft').value==='Familia Marca®','Marca registrada en modo Individual');
 assert($('downloadAll')&&!$('downloadAll').disabled,'Descarga masiva disponible en modo Individual');
@@ -184,7 +187,10 @@ class Handler(SimpleHTTPRequestHandler):
         elif request.path == '/custom.svg':
             mime = 'image/svg+xml'
             content = b'<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="128" height="128" fill="white"/></svg>'
-        elif request.path == '/api/image' and params.get('url', [''])[0].endswith('/1/1_1000.jpg'):
+        elif request.path == '/api/image' and params.get('url', [''])[0] in (
+            'https://assets.pcfactory.cl/public/foto/1/1_1000.jpg',
+            'https://assets.pcfactory.cl/public/foto_original/2/google_1000.jpg',
+        ):
             return self.send_error(404)
         elif request.path in ('/fixture.svg', '/api/image'):
             mime = 'image/svg+xml'
