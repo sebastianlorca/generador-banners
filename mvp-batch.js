@@ -156,10 +156,11 @@ return frame;
 }
 window.bannerBatch={isMassive:()=>mode.value==='massive',async generate(){
 if(running||loading)return;
-const config=window.bannerGenerator.snapshot(),rows=groups();
-if(!rows.length||rows.some(group=>group.error)){$('status').textContent='Carga una planilla y selecciona un ciclo con grupos válidos. Corrige los errores antes de generar.';return}
-const emptyGroups=rows.filter(group=>!Object.values(groupFormats.get(group)).some(Boolean));
-if(emptyGroups.length){$('status').textContent='Selecciona al menos un formato para cada grupo. Faltan formatos en '+emptyGroups.map(group=>group.cell).join(', ')+'.';return}
+const config=window.bannerGenerator.snapshot(),cycleGroups=groups();
+if(!cycleGroups.length||cycleGroups.some(group=>group.error)){$('status').textContent='Carga una planilla y selecciona un ciclo con grupos válidos. Corrige los errores antes de generar.';return}
+const rows=cycleGroups.filter(group=>Object.values(groupFormats.get(group)).some(Boolean));
+if(!rows.length){$('status').textContent='Selecciona al menos un formato en algún banner del ciclo.';return}
+const skipped=cycleGroups.length-rows.length;
 clearBatch();running=true;lock(true);batch.hidden=false;let failures=0;
 try{
 for(let i=0;i<rows.length;i++){
@@ -191,7 +192,7 @@ else{const warning=document.createElement('p');warning.textContent=(group.priceE
 checkbox.addEventListener('change',()=>generator.setPrices(checkbox.checked?group.sheetPrices:endpointPrices));
 }catch(error){failures++;panel.replaceChildren();tab.dataset.error='true';tab.textContent+=' · Error';const p=document.createElement('p');p.textContent=group.cell+': '+error.message;panel.append(p)}
 }
-activate(0);progress.textContent='Proceso terminado: '+(rows.length-failures)+' grupos generados y '+failures+' con error.';$('status').textContent=progress.textContent;
+activate(0);progress.textContent='Proceso terminado: '+(rows.length-failures)+' grupos generados y '+failures+' con error.'+(skipped?' Sin formatos: '+skipped+' (omitidos).':'');$('status').textContent=progress.textContent;
 }finally{running=false;lock(false)}
 }};
 $('selector-campana').addEventListener('change',()=>{if(!running)clearBatch()});
