@@ -227,6 +227,10 @@ function populateEditors(products,slots){products.forEach((p,i)=>{const index=sl
 function editedProduct(p,index){const control=controlNames[index];const prices=['price','reference'].map(field=>{const input=$(field+control),value=Number(input.value);if(String(input.value).trim()===''||!Number.isSafeInteger(value)||value<0)throw new Error('Producto '+(index+1)+': ingresa precios enteros mayores o iguales a cero.');return value});const [price,reference]=prices,discount=calculatedDiscount(price,reference);$('discount'+control).textContent=discount?'Descuento calculado: '+discount+' %':'Sin descuento (el referencial debe ser mayor al precio).';return {...p,bannerTitle:$('title'+control).value,nombre:$('name'+control).value,precio:{...p.precio,efectivo:price,referencia:reference,descuento:discount}}}
 function imageOptions(index){const name=controlNames[index];return {removeWhite:$('removeWhite'+name).checked,tolerance:Number($('tolerance'+name).value),removeInterior:$('removeInterior'+name).checked}}
 function syncCutoutControls(){for(let index=0;index<3;index++){const name=controlNames[index],disabled=busy||editorProductIds[index]===null,custom=$('image'+name).value==='11';$('removeWhite'+name).disabled=disabled||custom;$('removeInterior'+name).disabled=disabled||custom||!$('removeWhite'+name).checked;$('tolerance'+name).disabled=disabled||custom||!$('removeWhite'+name).checked}}
+function showImageSource(index,source){
+const status=$('imageSource'+controlNames[index]);
+status.textContent='Imagen cargada: '+source+'.';
+}
 async function loadProductImage(p,selection,options,customFile=null){
 async function prepare(url,label,custom=false){
 const image=await loadImage(url,label);
@@ -237,20 +241,20 @@ return !custom&&options.removeWhite?removeWhiteBackground(image,options.toleranc
 async function attempt(number){
 const label='la imagen '+number+' del producto '+p.id;
 const assetUrl='https://assets.pcfactory.cl/public/foto/'+encodeURIComponent(p.id)+'/'+number+'_1000.jpg';
-try{return await prepare(productImageUrl(assetUrl),label)}
+try{return {image:await prepare(productImageUrl(assetUrl),label),source:'cat\u00e1logo, versi\u00f3n 1000'}}
 catch(error){
 const catalogUrl=p.imagenes?.[String(number-1)]?.['250'];
 if(!catalogUrl)throw error;
-return prepare(productImageUrl(catalogUrl),label);
+return {image:await prepare(productImageUrl(catalogUrl),label),source:'cat\u00e1logo, versi\u00f3n 250 (alternativa)'};
 }
 }
 if(selection===11){
 let source;
-try{if(!customFile)throw new Error('Adjunta una imagen');source=URL.createObjectURL(customFile);return {image:await prepare(source,'la imagen personalizada',true),selection,fallback:false}}
-catch{return {image:await attempt(1),selection:1,fallback:true}}
+try{if(!customFile)throw new Error('Adjunta una imagen');source=URL.createObjectURL(customFile);return {image:await prepare(source,'la imagen personalizada',true),source:'personalizada',selection,fallback:false}}
+catch{return {...await attempt(1),selection:1,fallback:true}}
 finally{if(source)URL.revokeObjectURL(source)}
 }
-try{return {image:await attempt(selection),selection,fallback:false}}catch(error){if(selection===1)throw error;return {image:await attempt(1),selection:1,fallback:true}}
+try{return {...await attempt(selection),selection,fallback:false}}catch(error){if(selection===1)throw error;return {...await attempt(1),selection:1,fallback:true}}
 }
 async function changeProductImage(index){
 if(!lastScene||busy)return;
@@ -265,6 +269,7 @@ if(!Number.isFinite(options.tolerance)||options.tolerance<5||options.tolerance>9
 const result=await loadProductImage(scene.products[position],Number(selector.value),options,$('customImage'+controlNames[index]).files[0]);
 if(lastScene!==scene)return;
 scene.renderedImages[position]=result.image;scene.imageSelections[position]=result.selection;selector.value=String(result.selection);
+showImageSource(index,result.source);
 renderScene(scene);await Promise.all(sceneCanvases(scene).map(exportBlob));
 if(lastScene!==scene)return;
 setDownloads(true);status(result.fallback?'La imagen elegida no existe o no se pudo cargar. Se muestra la imagen '+result.selection+' del dropdown.':'Imagen actualizada en escritorio, mobile, stories y Pantalla FHD.');
@@ -459,7 +464,9 @@ if(scene.formats.mobile)renderMobile(scene,edited);if(scene.formats.story)render
 }
 for(let i=0;i<3;i++){
 const name=controlNames[i],group=document.createElement('details');group.id='controls'+i;group.hidden=true;
-group.innerHTML='<summary>Producto '+(i+1)+' - Editar controles</summary><div class="text-fields"><label>Título principal<input id="title'+name+'" type="text" disabled></label><label>Nombre del producto<input id="name'+name+'" type="text" disabled></label><label>Precio ($)<input id="price'+name+'" type="number" min="0" step="1" required disabled></label><label>Precio referencial ($)<input id="reference'+name+'" type="number" min="0" step="1" required disabled></label><small id="discount'+name+'">Se completa al generar con el ID.</small></div><div class="image-choice"><label>Imagen del producto<select id="image'+name+'" disabled>'+Array.from({length:10},(_,index)=>'<option value="'+(index+1)+'"'+(index===1?' selected':'')+'>'+(index+1)+'</option>').join('')+'<option value="11">11 - Personalizada</option></select></label><label>Imagen personalizada<input id="customImage'+name+'" type="file" accept="image/*" disabled></label><small>Opciones 1 a 10: fotos del cat&aacute;logo. Adjunta una imagen para seleccionar autom&aacute;ticamente la opci&oacute;n 11. El archivo se usa en este navegador. Si falta o no se puede abrir, se usa la imagen 1.</small></div><div class="zoom-options">'+[['zoom'+name,'Zoom (%)',50,250,100],['offset'+name+'X','Eje X (px)',-500,500,0],['offset'+name+'Y','Eje Y (px)',-500,500,0],['mobileZoom'+name,'Mobile: Zoom (%)',50,250,100],['mobileX'+name,'Mobile: Eje X (px)',-150,150,0],['mobileY'+name,'Mobile: Eje Y (px)',-150,150,0]].map(([id,label,min,max,value])=>'<label>'+label+'<div class="zoom-row"><input id="'+id+'" type="range" min="'+min+'" max="'+max+'" value="'+value+'"><input id="'+id+'Number" type="number" min="'+min+'" max="'+max+'" value="'+value+'" step="1" aria-label="'+label+' producto '+(i+1)+'"></div></label>').join('')+'</div>';
+group.innerHTML='<summary>Producto '+(i+1)+' - Editar controles</summary><div class="zoom-options">'+[['zoom'+name,'Zoom (%)',50,250,100],['offset'+name+'X','Eje X (px)',-500,500,0],['offset'+name+'Y','Eje Y (px)',-500,500,0],['mobileZoom'+name,'Mobile: Zoom (%)',50,250,100],['mobileX'+name,'Mobile: Eje X (px)',-150,150,0],['mobileY'+name,'Mobile: Eje Y (px)',-150,150,0]].map(([id,label,min,max,value])=>'<label>'+label+'<div class="zoom-row"><input id="'+id+'" type="range" min="'+min+'" max="'+max+'" value="'+value+'"><input id="'+id+'Number" type="number" min="'+min+'" max="'+max+'" value="'+value+'" step="1" aria-label="'+label+' producto '+(i+1)+'"></div></label>').join('')+'</div>'+
+'<div class="image-choice"><label>Imagen del producto<select id="image'+name+'" disabled>'+Array.from({length:10},(_,index)=>'<option value="'+(index+1)+'"'+(index===1?' selected':'')+'>'+(index+1)+'</option>').join('')+'<option value="11">11 - Personalizada</option></select></label><label>Imagen personalizada<input id="customImage'+name+'" type="file" accept="image/*" disabled></label><small id="imageSource'+name+'" role="status"></small><small>Opciones 1 a 10: fotos del cat&aacute;logo. Adjunta una imagen para seleccionar autom&aacute;ticamente la opci&oacute;n 11. El archivo se usa en este navegador. Si falta o no se puede abrir, se usa la imagen 1.</small></div>'+
+'<div class="text-fields"><label>Título principal<input id="title'+name+'" type="text" disabled></label><label>Nombre del producto<input id="name'+name+'" type="text" disabled></label><label>Precio ($)<input id="price'+name+'" type="number" min="0" step="1" required disabled></label><label>Precio referencial ($)<input id="reference'+name+'" type="number" min="0" step="1" required disabled></label><small id="discount'+name+'">Se completa al generar con el ID.</small></div>';
 const mobileGroup=document.createElement('details');mobileGroup.id='mobileControls'+i;mobileGroup.hidden=true;
 mobileGroup.innerHTML='<summary>Ajustar imagen mobile</summary><div class="zoom-options"></div>';
 const desktopZoom=group.querySelector('.zoom-options'),mobileZoom=mobileGroup.querySelector('.zoom-options');
@@ -472,7 +479,7 @@ const horizontal3840Group=storyGroup.cloneNode(true);horizontal3840Group.id='hor
 const note=document.createElement('p');note.className='shared-note';note.textContent='T\u00edtulo, nombre, precios e imagen se comparten con todos los formatos. El zoom y los ejes de esta secci\u00f3n solo afectan escritorio.';group.querySelector('summary').after(note);
 const cutout=document.createElement('fieldset');cutout.className='cutout-options';
 cutout.innerHTML='<legend>Fondo de la foto de catálogo</legend><label class="toggle"><input id="removeWhite'+name+'" type="checkbox" checked>Quitar fondo blanco</label><label class="toggle"><input id="removeInterior'+name+'" type="checkbox" checked>Quitar también blancos interiores</label><label>Intensidad de eliminación (5 a 90)<input id="tolerance'+name+'" type="number" min="5" max="90" step="1" value="35"></label><small>Aplica a este producto en los formatos de este banner. Las imágenes personalizadas conservan sus blancos y transparencia originales.</small>';
-group.querySelector('.image-choice').after(cutout);
+desktopZoom.after(cutout);
 $('imageControls').append(group);$('controlParking').append(mobileGroup);
 for(const field of ['removeWhite','removeInterior','tolerance'])$(field+name).addEventListener('change',()=>{syncCutoutControls();changeProductImage(i)});
 $('image'+name).addEventListener('change',()=>changeProductImage(i));
@@ -503,6 +510,7 @@ results.forEach((result,i)=>{$('image'+controlNames[slots[i].index]).value=Strin
 const scene={bg,products,mobileBg,storyBg,fhdBg,miniBg,horizontalBg,horizontal3840Bg,renderedImages,slots,imageSelections,imageOptions:options,formats};
 renderScene(scene);await Promise.all(sceneCanvases(scene).map(exportBlob));
 if(formats.desk)for(const p of products){const line=document.createElement('span');line.textContent=p.id+' \u00b7 '+p.nombre;$('products').append(line)}
+results.forEach((result,i)=>showImageSource(slots[i].index,result.source));
 lastScene=scene;showProductControls(slots,formats);setDownloads(true);
 const labels={desk:'Desk',mobile:'Mobile',story:'Storie',fhd:'FHD',mini:'Mini Totem',horizontal:'Horizontal 5760',horizontal3840:'Horizontal 3840'};
 status((results.some(result=>result.fallback)?'Una imagen no estaba disponible; se usa la imagen 1. ':'')+'Generados: '+Object.keys(formats).filter(key=>formats[key]).map(key=>labels[key]).join(', ')+'.'+(formats.desk&&(bg.width!==1920||bg.height!==525)?' El fondo Desk se ajusto a 1920 x 525 px.':''));
